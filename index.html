@@ -1,0 +1,1208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Typeface Proof</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: fixed control rail on the left (layers → type → OpenType), proofing stage on the right; stacks to one column on phones. */
+:root {
+  --bg: #eceef2;
+  --panel: #ffffff;
+  --fg: #15171c;
+  --muted: #5c6270;
+  --line: #d6dae2;
+  --chip: #e3e6ec;
+  --accent: #737373;
+  --accent-ink: #ffffff;
+  --good: #1d8656;
+  --warn: #e10600;
+  --font-ui: "Schibsted Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101217; --panel: #181b21; --fg: #e8eaef; --muted: #959cab; --line: #2a2e38;
+    --chip: #232731; --accent: #8c8c8c; --accent-ink: #0d1020; --good: #52c58f; --warn: #ff3b30;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101217; --panel: #181b21; --fg: #e8eaef; --muted: #959cab; --line: #2a2e38;
+  --chip: #232731; --accent: #8c8c8c; --accent-ink: #0d1020; --good: #52c58f; --warn: #ff3b30;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px; line-height: 1.4; }
+* { box-sizing: border-box; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { display: grid; grid-template-columns: 340px minmax(0, 1fr); height: 100%; }
+.side { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; padding-block: 18px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px; display: flex; flex-direction: column; gap: 22px; }
+.main { overflow-y: auto; padding-block: 18px 40px; padding-left: 24px; padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+/* Tall views must not squash the tab bar (overflow-x makes its min-height 0). */
+.main > * { flex-shrink: 0; }
+
+.brand { display: flex; flex-direction: column; gap: 2px; }
+.brand h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+.brand p { margin: 0; color: var(--muted); font-size: 12.5px; }
+
+.sec { display: flex; flex-direction: column; gap: 10px; }
+.sec-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.sec-h h2 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+.note { color: var(--muted); font-size: 12px; margin: 0; }
+
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--muted); padding: 4px 6px; }
+.btn.ghost:hover { color: var(--fg); }
+.btn:disabled { opacity: .5; cursor: default; }
+
+.drop { border: 1.5px dashed var(--line); border-radius: var(--r); padding: 14px; text-align: center; color: var(--muted); font-size: 12.5px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.drop strong { color: var(--fg); font-weight: 600; }
+
+/* Layers */
+.layers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.layer { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); }
+.layer.off .lname { opacity: .45; }
+.layer.drop-before { box-shadow: 0 -3px 0 var(--accent); }
+.layer.drop-after { box-shadow: 0 3px 0 var(--accent); }
+.lrow { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 6px 6px 6px 4px; }
+.grip { cursor: grab; color: var(--muted); padding: 4px 3px; font-size: 13px; letter-spacing: -2px; user-select: none; }
+.eye { width: 28px; height: 28px; border: 0; background: transparent; border-radius: 6px; display: grid; place-items: center; cursor: pointer; color: var(--fg); }
+.eye:hover { background: var(--chip); }
+.eye[aria-pressed="false"] { color: var(--muted); }
+.swatch { width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 6px; padding: 0; background: none; cursor: pointer; }
+.swatch::-webkit-color-swatch-wrapper { padding: 2px; }
+.swatch::-webkit-color-swatch { border: 0; border-radius: 4px; }
+.lname { min-width: 0; display: flex; flex-direction: column; }
+.lname strong { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lname small { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lbtns { display: flex; }
+.lbtns .btn.ghost { font-size: 14px; line-height: 1; padding: 5px 5px; }
+.layer details { border-top: 1px solid var(--line); }
+.layer summary { cursor: pointer; padding: 6px 10px; font-size: 12px; color: var(--muted); list-style: none; display: flex; justify-content: space-between; }
+.layer summary::-webkit-details-marker { display: none; }
+.layer summary::after { content: "+"; }
+.layer details[open] summary::after { content: "–"; }
+.ldetail { padding: 4px 10px 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.ldetail .full { grid-column: 1 / -1; }
+.ldetail .acts { grid-column: 1 / -1; display: flex; gap: 6px; justify-content: flex-end; }
+
+.field { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--muted); min-width: 0; }
+.field .val { display: flex; align-items: center; gap: 6px; }
+.field input[type="range"] { flex: 1; min-width: 0; }
+input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; height: 16px; margin: 0; cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { height: 1px; background: var(--muted); }
+input[type="range"]::-moz-range-track { height: 1px; background: var(--muted); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: var(--fg); border: 0; margin-top: -4.5px; }
+input[type="range"]::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: var(--fg); border: 0; }
+.field input[type="number"], .field select, .field input[type="text"] { width: 100%; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 4px 6px; font-size: 12.5px; color: var(--fg); }
+.field input[type="number"] { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.num { width: 64px !important; flex: none; }
+.unit { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+.seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { flex: 1; border: 0; background: var(--panel); padding: 5px 4px; cursor: pointer; font-size: 12px; color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--panel); }
+
+.typegrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.typegrid .full { grid-column: 1 / -1; }
+
+/* OpenType */
+.feats { display: flex; flex-direction: column; gap: 1px; }
+.feat { display: grid; grid-template-columns: auto 44px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px; cursor: pointer; font-size: 12.5px; }
+.feat:hover { background: var(--chip); }
+.feat input { accent-color: var(--accent); margin: 0; }
+.feat code { font-family: var(--font-mono); font-size: 11.5px; }
+.feat span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feat em { font-style: normal; font-size: 10.5px; color: var(--warn); border: 1px solid currentColor; border-radius: 99px; padding: 0 6px; white-space: nowrap; }
+
+/* Main */
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tab { border: 0; background: none; padding: 8px 12px; cursor: pointer; color: var(--muted); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--fg); }
+.tab .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-left: 6px; vertical-align: 1px; background: var(--muted); }
+.tab .dot.good { background: var(--good); }
+.tab .dot.warn { background: var(--warn); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 4px 11px; font-size: 12.5px; cursor: pointer; }
+.chip:hover { border-color: var(--muted); }
+.chips .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; align-self: center; margin-right: 4px; }
+
+.paper { background: var(--paper, #fff); border: 1px solid var(--line); border-radius: var(--r); padding: clamp(16px, 3vw, 40px); overflow: hidden; }
+.paper:focus-within { outline: 2px dashed var(--accent); outline-offset: 3px; }
+
+.stack { display: grid; isolation: isolate; line-height: var(--lh); letter-spacing: calc(var(--track) * 0.001em); text-align: var(--align); text-transform: var(--case); font-feature-settings: var(--ffs); font-kerning: normal; white-space: pre-wrap; overflow-wrap: break-word; }
+.stack > .ly { grid-area: 1 / 1; min-width: 0; pointer-events: none; }
+.stack > .edit { pointer-events: auto; color: transparent !important; caret-color: var(--accent); outline: none; cursor: text; }
+.stack > .edit::selection { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.stack.nowrap { white-space: pre; }
+.stack-empty { color: var(--muted); font-size: 13px; padding: 20px 0; }
+
+.status { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); min-height: 22px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 99px; padding: 3px 10px; font-size: 12px; font-weight: 500; background: var(--chip); color: var(--fg); }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.pill.good::before { background: var(--good); }
+.pill.warn::before { background: var(--warn); }
+.pill.warn { color: var(--warn); }
+
+.wf { display: flex; flex-direction: column; gap: 6px; }
+.wrow { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: baseline; gap: 12px; }
+.wrow .sz { font-family: var(--font-mono); font-size: 10.5px; color: #8a8f99; text-align: right; font-variant-numeric: tabular-nums; }
+.wrow .stack { overflow: hidden; }
+
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 28px; }
+.col { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.col .cap { font-family: var(--font-mono); font-size: 10.5px; color: #8a8f99; }
+
+.glyphs { display: grid; grid-template-columns: repeat(var(--gcols, 14), minmax(0, 1fr)); container-type: inline-size; gap: 1px; background: color-mix(in srgb, #888 25%, transparent); border: 1px solid color-mix(in srgb, #888 25%, transparent); }
+.gsecs { display: flex; flex-direction: column; gap: 22px; }
+.gsec { display: flex; flex-direction: column; gap: 8px; }
+.gsec h3 { margin: 0; font-size: 13px; font-weight: 600; }
+.gsec h3 span { font-family: var(--font-mono); font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+.gcell { background: var(--paper, #fff); aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; cursor: pointer; overflow: hidden; }
+.gcell .stack { font-size: calc(100cqi / var(--gcols, 14) * 0.56); line-height: 1.1; text-align: center; white-space: pre; letter-spacing: 0; text-transform: none; }
+.gcell .stack.long { font-size: calc(100cqi / var(--gcols, 14) * 0.28); }
+.gbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 10px; }
+.gbar .note { flex: 1 1 320px; }
+.gbar .field { flex-direction: row; align-items: center; gap: 8px; }
+.gbar .seg button { padding: 5px 12px; }
+.gcell .hex { position: absolute; bottom: 3px; font-family: var(--font-mono); font-size: 9px; color: #8a8f99; }
+.gcell.miss::after { content: ""; position: absolute; top: 0; right: 0; border: 7px solid transparent; border-top-color: var(--warn); border-right-color: var(--warn); }
+.gcell:hover { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
+
+/* Sync check */
+.auditbar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+.auditbar .field { flex: 1 1 220px; }
+.auditbar textarea { width: 100%; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); padding: 6px 8px; font-family: var(--font-mono); font-size: 12px; resize: vertical; min-height: 54px; color: var(--fg); }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.sum { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; border-top: 3px solid var(--good); }
+.sum.warn { border-top-color: var(--warn); }
+.sum b { font-size: 22px; font-variant-numeric: tabular-nums; font-weight: 600; }
+.sum span { color: var(--muted); font-size: 12px; }
+.res { display: flex; flex-direction: column; gap: 8px; }
+.res h3 { margin: 10px 0 0; font-size: 14px; font-weight: 600; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); max-height: 460px; overflow-y: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { padding: 5px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { position: sticky; top: 0; background: var(--panel); font-weight: 600; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; z-index: 1; }
+td.n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+td.bad { color: var(--warn); font-weight: 500; }
+td.g { font-size: 20px; }
+tr.click { cursor: pointer; }
+tr.click:hover td { background: var(--chip); }
+.empty { color: var(--muted); padding: 18px 0; margin: 0; }
+
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--panel); padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 50; max-width: calc(100% - 32px); }
+.dropveil { position: fixed; inset: 0; background: color-mix(in srgb, var(--accent) 14%, transparent); border: 3px dashed var(--accent); z-index: 40; display: grid; place-items: center; font-size: 20px; font-weight: 600; color: var(--accent); pointer-events: none; }
+
+@media (max-width: 820px) {
+  .app { display: block; height: auto; }
+  .side { border-right: 0; border-bottom: 1px solid var(--line); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .main { padding-left: max(16px, env(safe-area-inset-left, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <h1>Typeface Proof</h1>
+    </div>
+
+    <section class="sec" aria-labelledby="h-layers">
+      <div class="sec-h"><h2 id="h-layers">Layers</h2><span class="note">Top of list draws on top</span></div>
+      <ul class="layers" id="layers"></ul>
+      <div class="drop" id="drop">
+        <span><strong>Drop font files here</strong> or anywhere on the page</span>
+        <span>OTF, TTF, WOFF, WOFF2. Each file becomes a layer. Fonts stay in this browser.</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn primary" id="pick" type="button">Load fonts…</button>
+          <button class="btn" id="clear" type="button">Clear all</button>
+        </div>
+        <input type="file" id="file" accept=".otf,.ttf,.woff,.woff2" multiple hidden>
+      </div>
+    </section>
+
+    <section class="sec" aria-labelledby="h-type">
+      <div class="sec-h"><h2 id="h-type">Type</h2></div>
+      <div class="typegrid">
+        <label class="field full">Size
+          <span class="val"><input type="range" id="size" min="8" max="400" step="1"><input type="number" class="num" id="size-n" min="4" max="1000"><span class="unit">px</span></span>
+        </label>
+        <label class="field full">Leading
+          <span class="val"><input type="range" id="leading" min="60" max="220" step="1"><input type="number" class="num" id="leading-n" min="40" max="400"><span class="unit">%</span></span>
+        </label>
+        <label class="field full">Tracking
+          <span class="val"><input type="range" id="tracking" min="-200" max="600" step="5"><input type="number" class="num" id="tracking-n" min="-1000" max="2000"><span class="unit">/1000 em</span></span>
+        </label>
+        <div class="field">Align
+          <div class="seg" id="align" role="group" aria-label="Alignment">
+            <button type="button" data-v="left">Left</button><button type="button" data-v="center">Centre</button><button type="button" data-v="right">Right</button>
+          </div>
+        </div>
+        <div class="field">Case
+          <div class="seg" id="tcase" role="group" aria-label="Case">
+            <button type="button" data-v="none">Aa</button><button type="button" data-v="uppercase">AA</button><button type="button" data-v="lowercase">aa</button>
+          </div>
+        </div>
+        <label class="field">Paper
+          <span class="val"><input type="color" class="swatch" id="paper"><span class="unit" id="paper-hex"></span></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="sec" aria-labelledby="h-ot">
+      <div class="sec-h"><h2 id="h-ot">OpenType</h2><button class="btn ghost" id="feat-reset" type="button">Reset</button></div>
+      <p class="note" id="feat-note"></p>
+      <div class="feats" id="feats"></div>
+    </section>
+  </aside>
+
+  <main class="main" id="stage">
+    <div class="tabs" role="tablist" aria-label="Views">
+      <button class="tab" role="tab" data-view="tester" id="tab-tester">Tester</button>
+      <button class="tab" role="tab" data-view="waterfall" id="tab-waterfall">Waterfall</button>
+      <button class="tab" role="tab" data-view="paragraph" id="tab-paragraph">Paragraph</button>
+      <button class="tab" role="tab" data-view="glyphs" id="tab-glyphs">Glyphs</button>
+      <button class="tab" role="tab" data-view="audit" id="tab-audit">Sync check<span class="dot" id="audit-dot"></span></button>
+    </div>
+
+    <div class="chips" id="presets"></div>
+
+    <section id="v-tester" class="view">
+      <div class="paper"><div id="tester-host"></div></div>
+      <div class="status" id="drift-row"><span class="pill" id="drift">Measuring…</span><span id="drift-sub"></span></div>
+    </section>
+
+    <section id="v-waterfall" class="view" hidden>
+      <div class="paper"><div class="wf" id="wf-host"></div></div>
+    </section>
+
+    <section id="v-paragraph" class="view" hidden>
+      <div class="paper"><div class="cols" id="para-host"></div></div>
+    </section>
+
+    <section id="v-glyphs" class="view" hidden>
+      <div class="gbar">
+        <div class="field">Per row
+          <div class="seg" id="gcols" role="group" aria-label="Glyphs per row">
+            <button type="button" data-v="14">14</button><button type="button" data-v="9">9</button><button type="button" data-v="6">6</button>
+          </div>
+        </div>
+        <p class="note" id="glyph-note"></p>
+      </div>
+      <div class="gsecs" id="glyph-host"></div>
+    </section>
+
+    <section id="v-audit" class="view res" hidden>
+      <div class="auditbar">
+        <label class="field" style="flex:0 1 220px">Compare against
+          <select id="ref"></select>
+        </label>
+        <label class="field">Characters to check (advance widths, and every pair for kerning)
+          <textarea id="charset" spellcheck="false" rows="2"></textarea>
+        </label>
+        <div style="display:flex;gap:6px">
+          <button class="btn primary" id="run" type="button">Run check</button>
+          <button class="btn" id="copy" type="button" disabled>Copy report</button>
+        </div>
+      </div>
+      <p class="note">Widths are measured in the browser at 1000 px, so values read as units per 1000 em. Kerning is measured as each pair’s width minus its two glyphs. Variable axes and feature toggles are not applied to the measurements.</p>
+      <div id="audit-out" class="res"></div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" hidden></div>
+<div class="dropveil" id="veil" hidden>Drop fonts to add layers</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Math.random().toString(36).slice(2, 10);
+const KEY = 'layer-proof-v1';
+const PALETTE = ['#16181d', '#808080', '#2f6fde', '#f2b632', '#3c9d6e', '#b04fc9'];
+const PARA = 'Signs on Central Avenue were painted by hand, letter by letter, then outlined and shaded so the names could be read from a moving tram. A shadow sits a fixed distance behind every stroke, and if the spacing of the face and the spacing of its shadow drift apart by even a few units, the drift shows first in long words, then in long lines, then everywhere. Proof the shadow over the bold, and the stencil over both, at sizes from billboard to footnote: 1,284 shopfronts, 37 blocks, open 7 days.';
+const DEFAULT_CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;!?¡¿'\"‘’“”‹›«»-–—()[]{}/\\&@#%*+=<>$€£¥¢ÀÁÂÄÅÆÇÈÉÊËÍÎÏÑÒÓÔÖØŒÙÚÛÜßàáâäåæçèéêëíîïñòóôöøœùúûüÿ";
+const DEFAULT_ON = new Set(['kern', 'liga', 'calt', 'clig']);
+const REQUIRED = new Set(['ccmp', 'locl', 'mark', 'mkmk', 'rlig', 'rvrn', 'curs', 'dist', 'abvm', 'blwm', 'init', 'medi', 'fina', 'isol', 'size']);
+const COMMON = ['kern', 'liga', 'calt', 'clig', 'dlig', 'case', 'cpsp', 'frac', 'sups', 'subs', 'ordn', 'lnum', 'onum', 'pnum', 'tnum', 'zero', 'smcp', 'c2sc', 'salt', 'ss01', 'ss02', 'ss03', 'ss04', 'ss05'];
+const FEAT_NAMES = {
+  aalt: 'All alternates', afrc: 'Alternative fractions', c2sc: 'Caps to small caps', calt: 'Contextual alternates', case: 'Case-sensitive forms',
+  clig: 'Contextual ligatures', cpsp: 'Capital spacing', cswh: 'Contextual swash', dlig: 'Discretionary ligatures', dnom: 'Denominators',
+  frac: 'Fractions', hist: 'Historical forms', hlig: 'Historical ligatures', kern: 'Kerning', liga: 'Standard ligatures', lnum: 'Lining figures',
+  numr: 'Numerators', onum: 'Oldstyle figures', ordn: 'Ordinals', ornm: 'Ornaments', pnum: 'Proportional figures', salt: 'Stylistic alternates',
+  sinf: 'Scientific inferiors', smcp: 'Small caps', subs: 'Subscript', sups: 'Superscript', swsh: 'Swash', titl: 'Titling', tnum: 'Tabular figures',
+  zero: 'Slashed zero', unic: 'Unicase', pcap: 'Petite caps', c2pc: 'Caps to petite caps', mgrk: 'Math Greek', ital: 'Italics', ccmp: 'Glyph composition'
+};
+const featName = (t, n) => (n && n.ssNames && n.ssNames[t]) || FEAT_NAMES[t] || (/^ss\d\d$/.test(t) ? 'Stylistic set ' + +t.slice(2) : /^cv\d\d$/.test(t) ? 'Character variant ' + +t.slice(2) : '');
+const PRESETS = [
+  { g: 'Short', items: [
+    ['Name', 'Central Avenue'], ['Shadow', 'SHADOW'], ['Control', 'Hamburgefonstiv'], ['Tight pairs', 'AVATAR Toyota WAVE\nLT Ty Yo P. F, “A”'],
+    ['Figures', '0123456789\n£1,250.00 · 24/7 · 3½'], ['Accents', 'ÀÉÎÕÜ Ç Œuvre\nSmørrebrød Ærø']
+  ] },
+  { g: 'Spacing', items: [
+    ['Caps HOH', () => [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].map(c => 'HH' + c + 'HOO' + c + 'OO').join(' ')],
+    ['Lower non', () => [...'abcdefghijklmnopqrstuvwxyz'].map(c => 'nn' + c + 'noo' + c + 'oo').join(' ')],
+    ['Figures 010', () => [...'0123456789'].map(c => '00' + c + '0' + '11' + c + '11').join(' ')]
+  ] },
+  { g: 'Long', items: [['Paragraph', () => PARA], ['Pangrams', 'The quick brown fox jumps over the lazy dog.\nSPHINX OF BLACK QUARTZ, JUDGE MY VOW.\nPack my box with five dozen liquor jugs.']] }
+];
+
+const state = {
+  layers: [], view: 'tester', text: 'Central Avenue', longText: PARA,
+  size: 160, leading: 115, tracking: 0, align: 'left', tcase: 'none', paper: '#ffffff',
+  features: {}, charset: DEFAULT_CHARSET, refFamily: null, openCards: [], gcols: 14
+};
+const fonts = {}; // fontId -> { family, info, file }
+let lastAudit = null;
+
+/* ---------- storage (best effort) ---------- */
+function loadLS() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { return null; } }
+let saveT;
+function save() {
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    try {
+      const { layers, ...rest } = state;
+      localStorage.setItem(KEY, JSON.stringify({ ...rest, layers: layers.map(l => ({ ...l })) }));
+    } catch {}
+  }, 250);
+}
+let dbP = null;
+function db() {
+  if (!dbP) dbP = new Promise((res, rej) => {
+    const r = indexedDB.open('layer-proof', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('fonts', { keyPath: 'id' });
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  return dbP;
+}
+async function idb(mode, fn) {
+  try {
+    const d = await db();
+    return await new Promise((res, rej) => {
+      const tx = d.transaction('fonts', mode);
+      const req = fn(tx.objectStore('fonts'));
+      tx.oncomplete = () => res(req && req.result);
+      tx.onerror = () => rej(tx.error);
+    });
+  } catch { return null; }
+}
+
+/* ---------- font file parsing (sfnt / woff) ---------- */
+const tagAt = (d, o) => String.fromCharCode(d.getUint8(o), d.getUint8(o + 1), d.getUint8(o + 2), d.getUint8(o + 3));
+async function inflate(bytes) {
+  const out = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer();
+  return new Uint8Array(out);
+}
+async function sfntTables(buf) {
+  const d = new DataView(buf), sig = d.getUint32(0), T = {};
+  if (sig === 0x774F4646) { // wOFF
+    const n = d.getUint16(12);
+    for (let i = 0; i < n; i++) {
+      const o = 44 + i * 20, tag = tagAt(d, o), off = d.getUint32(o + 4), comp = d.getUint32(o + 8), orig = d.getUint32(o + 12);
+      let b = new Uint8Array(buf, off, comp);
+      if (comp < orig) b = await inflate(b);
+      T[tag] = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    }
+    return { T, kind: 'WOFF' };
+  }
+  if (sig === 0x774F4632) return { T: null, kind: 'WOFF2' };
+  if (sig === 0x74746366) return { T: null, kind: 'TTC' };
+  const n = d.getUint16(4);
+  for (let i = 0; i < n; i++) {
+    const o = 12 + i * 16;
+    T[tagAt(d, o)] = new DataView(buf, d.getUint32(o + 8), d.getUint32(o + 12));
+  }
+  return { T, kind: sig === 0x4F54544F ? 'OTF' : 'TTF' };
+}
+function readNames(t) {
+  const out = {}, pri = {};
+  if (!t) return out;
+  const count = t.getUint16(2), so = t.getUint16(4);
+  for (let i = 0; i < count; i++) {
+    const o = 6 + i * 12, pid = t.getUint16(o), lid = t.getUint16(o + 4), nid = t.getUint16(o + 6), len = t.getUint16(o + 8), off = so + t.getUint16(o + 10);
+    const p = pid === 3 && lid === 0x409 ? 3 : (pid === 3 || pid === 0) ? 2 : (pid === 1 && lid === 0) ? 1 : 0;
+    if (!p || (pri[nid] || 0) >= p) continue;
+    let s = '';
+    if (p >= 2) for (let j = 0; j + 1 < len; j += 2) s += String.fromCharCode(t.getUint16(off + j));
+    else for (let j = 0; j < len; j++) s += String.fromCharCode(t.getUint8(off + j));
+    out[nid] = s; pri[nid] = p;
+  }
+  return out;
+}
+function readFeatures(t, names) {
+  const tags = new Set(), ssNames = {};
+  if (!t) return { tags, ssNames };
+  const fl = t.getUint16(6), n = t.getUint16(fl);
+  for (let i = 0; i < n; i++) {
+    const o = fl + 2 + i * 6, tag = tagAt(t, o);
+    tags.add(tag);
+    if (/^ss\d\d$/.test(tag)) { // FeatureParams: UI name ID for stylistic sets
+      try {
+        const fo = fl + t.getUint16(o + 4), po = t.getUint16(fo);
+        if (po) { const nid = t.getUint16(fo + po + 2); if (names[nid]) ssNames[tag] = names[nid]; }
+      } catch {}
+    }
+  }
+  return { tags, ssNames };
+}
+function readAxes(t, names) {
+  if (!t) return [];
+  const ao = t.getUint16(4), count = t.getUint16(8), size = t.getUint16(10), axes = [];
+  for (let i = 0; i < count; i++) {
+    const o = ao + i * size;
+    axes.push({ tag: tagAt(t, o), min: t.getInt32(o + 4) / 65536, def: t.getInt32(o + 8) / 65536, max: t.getInt32(o + 12) / 65536, name: names[t.getUint16(o + 18)] || tagAt(t, o) });
+  }
+  return axes;
+}
+function cmapInfo(t) {
+  const map = new Map();
+  if (t) {
+    const n = t.getUint16(2);
+    let best = null, score = 0;
+    for (let i = 0; i < n; i++) {
+      const pid = t.getUint16(4 + i * 8), eid = t.getUint16(6 + i * 8), off = t.getUint32(8 + i * 8), fmt = t.getUint16(off);
+      const sc = fmt === 12 && ((pid === 3 && eid === 10) || pid === 0) ? 3 : fmt === 4 && ((pid === 3 && eid <= 1) || pid === 0) ? 2 : 0;
+      if (sc > score) { score = sc; best = { off, fmt }; }
+    }
+    if (best && best.fmt === 12) {
+      const off = best.off, ng = t.getUint32(off + 12);
+      for (let i = 0; i < ng; i++) {
+        const a = t.getUint32(off + 16 + i * 12), b = t.getUint32(off + 20 + i * 12), g = t.getUint32(off + 24 + i * 12);
+        for (let cp = a; cp <= b && cp - a < 70000; cp++) if (g + cp - a) map.set(cp, g + cp - a);
+      }
+    } else if (best) {
+      const off = best.off, segX2 = t.getUint16(off + 6), seg = segX2 / 2, endO = off + 14, startO = endO + segX2 + 2, deltaO = startO + segX2, rangeO = deltaO + segX2;
+      for (let s = 0; s < seg; s++) {
+        const end = t.getUint16(endO + 2 * s), start = t.getUint16(startO + 2 * s), delta = t.getUint16(deltaO + 2 * s), ro = t.getUint16(rangeO + 2 * s);
+        for (let cp = start; cp <= end; cp++) {
+          if (cp === 0xFFFF) break;
+          let gid;
+          if (ro === 0) gid = (cp + delta) & 0xFFFF;
+          else { gid = t.getUint16(rangeO + 2 * s + ro + 2 * (cp - start)); if (gid) gid = (gid + delta) & 0xFFFF; }
+          if (gid) map.set(cp, gid);
+        }
+      }
+    }
+  }
+  return { cmap: map.size ? cp => map.has(cp) : null, cmapMap: map };
+}
+// Single (1), alternate (3) and ligature (4) substitutions per GSUB feature, unwrapping extension lookups (7).
+function readCoverage(t, o) {
+  const fmt = t.getUint16(o), n = t.getUint16(o + 2), out = [];
+  if (fmt === 1) for (let i = 0; i < n; i++) out.push(t.getUint16(o + 4 + 2 * i));
+  else if (fmt === 2) for (let i = 0; i < n; i++) { const r = o + 4 + 6 * i; for (let g = t.getUint16(r); g <= t.getUint16(r + 2); g++) out.push(g); }
+  return out;
+}
+function readSubs(t) {
+  const out = {};
+  if (!t) return out;
+  const fl = t.getUint16(6), ll = t.getUint16(8), lookupCount = t.getUint16(ll), cache = {};
+  const lookup = li => {
+    if (cache[li]) return cache[li];
+    const res = [], lo = ll + t.getUint16(ll + 2 + 2 * li), type = t.getUint16(lo), subCount = t.getUint16(lo + 4);
+    for (let k = 0; k < subCount; k++) {
+      try {
+        let so = lo + t.getUint16(lo + 6 + 2 * k), ty = type;
+        if (ty === 7) { ty = t.getUint16(so + 2); so += t.getUint32(so + 4); }
+        const fmt = t.getUint16(so), cov = readCoverage(t, so + t.getUint16(so + 2));
+        if (ty === 1 && fmt === 1) { const d = t.getUint16(so + 4); cov.forEach(g => res.push({ in: [g], out: (g + d) & 0xFFFF, n: 1 })); }
+        else if (ty === 1 && fmt === 2) { const c = t.getUint16(so + 4); cov.forEach((g, i) => { if (i < c) res.push({ in: [g], out: t.getUint16(so + 6 + 2 * i), n: 1 }); }); }
+        else if (ty === 3) cov.forEach((g, i) => { const ao = so + t.getUint16(so + 6 + 2 * i), c = t.getUint16(ao); for (let a = 0; a < c; a++) res.push({ in: [g], out: t.getUint16(ao + 2 + 2 * a), n: a + 1 }); });
+        else if (ty === 4) cov.forEach((g, i) => {
+          const ls = so + t.getUint16(so + 6 + 2 * i), lc = t.getUint16(ls);
+          for (let a = 0; a < lc; a++) {
+            const lg = ls + t.getUint16(ls + 2 + 2 * a), cc = t.getUint16(lg + 2), comps = [g];
+            for (let m = 1; m < cc; m++) comps.push(t.getUint16(lg + 4 + 2 * (m - 1)));
+            res.push({ in: comps, out: t.getUint16(lg), n: 1 });
+          }
+        });
+      } catch {}
+    }
+    return (cache[li] = res);
+  };
+  const fc = t.getUint16(fl), done = {};
+  for (let i = 0; i < fc; i++) {
+    const o = fl + 2 + 6 * i, tag = tagAt(t, o), fo = fl + t.getUint16(o + 4), lic = t.getUint16(fo + 2);
+    for (let k = 0; k < lic; k++) {
+      const li = t.getUint16(fo + 4 + 2 * k);
+      if (li >= lookupCount || (done[tag] ||= new Set()).has(li)) continue;
+      done[tag].add(li);
+      (out[tag] ||= []).push(...lookup(li));
+    }
+  }
+  return out;
+}
+function readMetrics(T) {
+  const m = {};
+  if (T.head) m.upm = T.head.getUint16(18);
+  if (T.hhea) { m.hheaAsc = T.hhea.getInt16(4); m.hheaDesc = T.hhea.getInt16(6); m.hheaGap = T.hhea.getInt16(8); }
+  const o = T['OS/2'];
+  if (o && o.byteLength >= 78) {
+    m.typoAsc = o.getInt16(68); m.typoDesc = o.getInt16(70); m.typoGap = o.getInt16(72);
+    m.winAsc = o.getUint16(74); m.winDesc = o.getUint16(76); m.useTypo = (o.getUint16(62) & 128) ? 'on' : 'off';
+    if (o.getUint16(0) >= 2 && o.byteLength >= 90) { m.xHeight = o.getInt16(86); m.capHeight = o.getInt16(88); }
+  }
+  return m;
+}
+async function analyse(buf) {
+  try {
+    const { T, kind } = await sfntTables(buf);
+    if (!T) return { kind };
+    const names = readNames(T.name);
+    const gsub = readFeatures(T.GSUB, names), gpos = readFeatures(T.GPOS, names);
+    return {
+      kind,
+      fullName: names[4] || [names[16] || names[1], names[17] || names[2]].filter(Boolean).join(' '),
+      version: (names[5] || '').replace(/^Version\s*/i, '').split(';')[0],
+      features: new Set([...gsub.tags, ...gpos.tags]),
+      ssNames: { ...gsub.ssNames, ...gpos.ssNames },
+      axes: readAxes(T.fvar, names),
+      ...cmapInfo(T.cmap),
+      subs: readSubs(T.GSUB),
+      numGlyphs: T.maxp ? T.maxp.getUint16(4) : 0,
+      metrics: readMetrics(T)
+    };
+  } catch (e) { return { kind: 'Unknown' }; }
+}
+
+/* ---------- layers ---------- */
+const info = l => (l.fontId && fonts[l.fontId] ? fonts[l.fontId].info : null);
+function nextColor() { return PALETTE[state.layers.length % PALETTE.length]; }
+function newLayer(o) {
+  return Object.assign({ id: uid(), fontId: null, example: false, family: '', name: '', color: nextColor(), opacity: 100, visible: true, blend: 'normal', dx: 0, dy: 0, axes: {} }, o);
+}
+
+async function registerFont(id, buf, file) {
+  if (fonts[id]) return fonts[id];
+  const family = 'LP_' + id;
+  const face = new FontFace(family, buf.slice(0));
+  await face.load();
+  document.fonts.add(face);
+  fonts[id] = { family, file, info: await analyse(buf.slice(0)) };
+  return fonts[id];
+}
+async function addFiles(list) {
+  const files = [...list].filter(f => /\.(otf|ttf|woff2?)$/i.test(f.name));
+  if (!files.length) { toast('Those files aren’t fonts. Use OTF, TTF, WOFF or WOFF2.'); return; }
+  if (state.layers.some(l => l.example)) state.layers = state.layers.filter(l => !l.example);
+  let added = 0;
+  for (const f of files) {
+    const id = uid();
+    try {
+      const buf = await f.arrayBuffer();
+      const F = await registerFont(id, buf, f.name);
+      await idb('readwrite', s => s.put({ id, file: f.name, buf }));
+      // New files go to the bottom of the stack so the first file loaded stays on top.
+      state.layers.push(newLayer({ fontId: id, family: F.family, name: (F.info && F.info.fullName) || f.name.replace(/\.\w+$/, '') }));
+      added++;
+    } catch (e) { toast('Couldn’t load ' + f.name + '. The file may be damaged.'); }
+  }
+  if (added) toast(added === 1 ? 'Added 1 layer' : 'Added ' + added + ' layers');
+  lastAudit = null;
+  renderAll();
+}
+function moveLayer(id, to) {
+  const i = state.layers.findIndex(l => l.id === id);
+  if (i < 0) return;
+  const [l] = state.layers.splice(i, 1);
+  state.layers.splice(Math.max(0, Math.min(to, state.layers.length)), 0, l);
+  renderAll();
+}
+async function removeLayer(id) {
+  const l = state.layers.find(x => x.id === id);
+  state.layers = state.layers.filter(x => x.id !== id);
+  if (l && l.fontId && !state.layers.some(x => x.fontId === l.fontId)) {
+    await idb('readwrite', s => s.delete(l.fontId));
+    delete fonts[l.fontId];
+  }
+  lastAudit = null;
+  renderAll();
+}
+
+/* ---------- styles ---------- */
+function ffs() {
+  const parts = [];
+  for (const [t, on] of Object.entries(state.features)) if (on !== DEFAULT_ON.has(t)) parts.push(`"${t}" ${on ? 1 : 0}`);
+  return parts.join(', ') || 'normal';
+}
+function applyVars() {
+  const s = $('#stage').style;
+  s.setProperty('--size', state.size + 'px');
+  s.setProperty('--lh', state.leading / 100);
+  s.setProperty('--track', state.tracking);
+  s.setProperty('--align', state.align);
+  s.setProperty('--case', state.tcase);
+  s.setProperty('--ffs', ffs());
+  s.setProperty('--paper', state.paper);
+}
+function styleLayer(el, l) {
+  el.style.fontFamily = `"${l.family}", "Adobe Blank", sans-serif`;
+  el.style.color = l.color;
+  el.style.opacity = l.opacity / 100;
+  el.style.mixBlendMode = l.blend;
+  if (l.dx || l.dy) el.style.translate = `${l.dx / 1000}em ${l.dy / 1000}em`;
+  const ax = Object.entries(l.axes || {});
+  if (ax.length) el.style.fontVariationSettings = ax.map(([k, v]) => `"${k}" ${v}`).join(', ');
+}
+function makeStack(text, { key = null, size = null, nowrap = false } = {}) {
+  const vis = state.layers.filter(l => l.visible);
+  if (!vis.length) { const p = document.createElement('div'); p.className = 'stack-empty'; p.textContent = state.layers.length ? 'All layers are hidden.' : 'Drop font files anywhere on the page, or use Load fonts…, to start proofing.'; return p; }
+  const s = document.createElement('div');
+  s.className = 'stack' + (nowrap ? ' nowrap' : '');
+  if (size) s.style.fontSize = size + 'px';
+  if (key) s.dataset.key = key;
+  for (const l of [...vis].reverse()) {
+    const d = document.createElement('div');
+    d.className = 'ly';
+    styleLayer(d, l);
+    d.textContent = text;
+    s.append(d);
+  }
+  if (key) {
+    const e = document.createElement('div');
+    e.className = 'ly edit';
+    styleLayer(e, vis[0]);
+    e.style.opacity = 1; e.style.mixBlendMode = 'normal';
+    e.contentEditable = 'plaintext-only';
+    if (e.contentEditable !== 'plaintext-only') e.contentEditable = 'true';
+    e.spellcheck = false;
+    e.setAttribute('role', 'textbox');
+    e.setAttribute('aria-label', 'Proof text');
+    e.setAttribute('aria-multiline', 'true');
+    e.textContent = text;
+    e.addEventListener('input', () => {
+      const t = e.innerText.replace(/\n$/, '');
+      state[key] = t;
+      document.querySelectorAll(`.stack[data-key="${key}"] .ly`).forEach(x => { if (x !== e) x.textContent = t; });
+      if (key === 'text') scheduleDrift();
+      save();
+    });
+    e.addEventListener('paste', ev => {
+      if (e.contentEditable === 'plaintext-only') return;
+      ev.preventDefault();
+      document.execCommand('insertText', false, ev.clipboardData.getData('text/plain'));
+    });
+    s.append(e);
+  }
+  return s;
+}
+
+/* ---------- render: sidebar ---------- */
+const EYE = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/></svg>';
+const EYE_OFF = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M2 2l12 12M6.6 3.7A6.8 6.8 0 0 1 8 3.5c4.1 0 6.5 4.5 6.5 4.5a11 11 0 0 1-1.9 2.4M4.2 4.9A11 11 0 0 0 1.5 8s2.4 4.5 6.5 4.5a6.4 6.4 0 0 0 3-.7"/></svg>';
+function renderLayers() {
+  const ul = $('#layers');
+  ul.innerHTML = '';
+  state.layers.forEach((l, i) => {
+    const inf = info(l);
+    const sub = l.example ? 'Example · replaced when you load fonts'
+      : [inf && inf.kind, inf && inf.version && 'v' + inf.version, inf && inf.features ? inf.features.size + ' features' : 'features not readable'].filter(Boolean).join(' · ');
+    const axes = (inf && inf.axes) || [];
+    const li = document.createElement('li');
+    li.className = 'layer' + (l.visible ? '' : ' off');
+    li.dataset.id = l.id;
+    li.innerHTML = `
+      <div class="lrow">
+        <span class="grip" draggable="true" title="Drag to reorder">⋮⋮</span>
+        <button class="eye" type="button" data-act="eye" aria-pressed="${l.visible}" aria-label="${l.visible ? 'Hide' : 'Show'} ${esc(l.name)}">${l.visible ? EYE : EYE_OFF}</button>
+        <input type="color" class="swatch" id="c-${l.id}" data-k="color" value="${l.color}" aria-label="Colour for ${esc(l.name)}">
+        <div class="lname"><strong title="${esc(l.name)}">${esc(l.name)}</strong><small>${esc(sub)}</small></div>
+        <div class="lbtns">
+          <button class="btn ghost" type="button" data-act="up" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button class="btn ghost" type="button" data-act="down" aria-label="Move down" ${i === state.layers.length - 1 ? 'disabled' : ''}>↓</button>
+        </div>
+      </div>
+      <details ${state.openCards.includes(l.id) ? 'open' : ''}>
+        <summary>Opacity ${l.opacity}% · ${l.blend}${l.dx || l.dy ? ` · offset ${l.dx}, ${l.dy}` : ''}</summary>
+        <div class="ldetail">
+          <label class="field full">Opacity<span class="val"><input type="range" id="o-${l.id}" data-k="opacity" min="0" max="100" value="${l.opacity}"><span class="unit">${l.opacity}%</span></span></label>
+          <label class="field full">Blend
+            <select id="b-${l.id}" data-k="blend">${['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'difference'].map(b => `<option ${b === l.blend ? 'selected' : ''}>${b}</option>`).join('')}</select>
+          </label>
+          <label class="field">Offset X <span class="unit">/1000 em</span><input type="number" id="x-${l.id}" data-k="dx" step="5" value="${l.dx}"></label>
+          <label class="field">Offset Y <span class="unit">/1000 em</span><input type="number" id="y-${l.id}" data-k="dy" step="5" value="${l.dy}"></label>
+          ${axes.map(a => {
+            const v = l.axes[a.tag] ?? a.def;
+            return `<label class="field full">${esc(a.name)} <span class="unit">${a.tag}</span><span class="val"><input type="range" id="a-${l.id}-${a.tag}" data-axis="${a.tag}" min="${a.min}" max="${a.max}" step="any" value="${v}"><span class="unit">${Math.round(v)}</span></span></label>`;
+          }).join('')}
+          <div class="acts">
+            <button class="btn" type="button" data-act="dup">Duplicate</button>
+            <button class="btn" type="button" data-act="del">Remove</button>
+          </div>
+        </div>
+      </details>`;
+    ul.append(li);
+  });
+}
+function renderFeatures() {
+  const fs = uniqueFonts();
+  const parsed = fs.filter(f => f.info && f.info.features);
+  let tags = parsed.length ? [...new Set(parsed.flatMap(f => [...f.info.features]))] : COMMON.slice();
+  tags = tags.filter(t => !REQUIRED.has(t));
+  const order = ['kern', 'liga', 'calt', 'clig'];
+  tags.sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99) || a.localeCompare(b));
+  const ss = Object.assign({}, ...parsed.map(f => f.info.ssNames));
+  $('#feat-note').textContent = parsed.length
+    ? `Features found in your fonts. Applied to every layer at once.${parsed.length < fs.length ? ' Some layers couldn’t be read (WOFF2 or examples).' : ''}`
+    : 'Showing common features. Load OTF, TTF or WOFF files to list exactly what each font contains.';
+  $('#feats').innerHTML = tags.map(t => {
+    const on = state.features[t] ?? DEFAULT_ON.has(t);
+    const missing = parsed.length > 1 ? parsed.filter(f => !f.info.features.has(t)).map(f => f.name) : [];
+    return `<label class="feat" for="f-${t}"><input type="checkbox" id="f-${t}" data-tag="${t}" ${on ? 'checked' : ''}><code>${t}</code><span>${esc(featName(t, { ssNames: ss }))}</span>${missing.length ? `<em title="Missing in: ${esc(missing.join(', '))}">not in ${missing.length === 1 ? esc(short(missing[0])) : missing.length}</em>` : ''}</label>`;
+  }).join('');
+}
+const short = s => s.replace(/^WT\s*/i, '').replace(/Central Avenue Next\s*/i, '') || s;
+function syncTypeControls() {
+  for (const k of ['size', 'leading', 'tracking']) { $('#' + k).value = state[k]; $('#' + k + '-n').value = state[k]; }
+  for (const k of ['align', 'tcase']) $('#' + k).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === state[k]));
+  $('#paper').value = state.paper; $('#paper-hex').textContent = state.paper;
+  $('#charset').value = state.charset;
+}
+function uniqueFonts() {
+  const seen = new Map();
+  for (const l of state.layers) if (!seen.has(l.family)) seen.set(l.family, { family: l.family, name: l.name, info: info(l) });
+  return [...seen.values()];
+}
+
+/* ---------- render: views ---------- */
+function renderPresets() {
+  const show = ['tester', 'waterfall', 'paragraph'].includes(state.view);
+  const host = $('#presets');
+  host.hidden = !show;
+  host.innerHTML = PRESETS.map((g, gi) => `<span class="lbl">${g.g}</span>` + g.items.map((it, ii) => `<button class="chip" type="button" data-p="${gi}.${ii}">${it[0]}</button>`).join('')).join('');
+}
+function renderView() {
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.view === state.view));
+  document.querySelectorAll('.view').forEach(v => v.hidden = v.id !== 'v-' + state.view);
+  renderPresets();
+  const hosts = { tester: '#tester-host', waterfall: '#wf-host', paragraph: '#para-host', glyphs: '#glyph-host' };
+  if (hosts[state.view] && !state.layers.some(l => l.visible)) {
+    const h = $(hosts[state.view]); h.innerHTML = ''; h.append(makeStack(''));
+    if (state.view === 'tester') scheduleDrift();
+    return;
+  }
+  if (state.view === 'tester') {
+    const h = $('#tester-host'); h.innerHTML = '';
+    const s = makeStack(state.text, { key: 'text' });
+    if (s.classList.contains('stack')) s.style.fontSize = 'var(--size)';
+    h.append(s);
+    scheduleDrift();
+  } else if (state.view === 'waterfall') {
+    const h = $('#wf-host'); h.innerHTML = '';
+    const line = state.text.replace(/\n+/g, ' ');
+    for (const sz of [144, 120, 96, 72, 60, 48, 36, 28, 24, 18, 14, 12, 10]) {
+      const r = document.createElement('div'); r.className = 'wrow';
+      r.innerHTML = `<span class="sz">${sz}</span>`;
+      r.append(makeStack(line, { size: sz, nowrap: true }));
+      h.append(r);
+    }
+  } else if (state.view === 'paragraph') {
+    const h = $('#para-host'); h.innerHTML = '';
+    for (const [cap, sz] of [['Display · 40 px', 40], ['Text · 20 px', 20], ['Small · 13 px', 13]]) {
+      const c = document.createElement('div'); c.className = 'col';
+      c.innerHTML = `<span class="cap">${cap}</span>`;
+      c.append(makeStack(state.longText, { key: 'longText', size: sz }));
+      h.append(c);
+    }
+  } else if (state.view === 'glyphs') {
+    renderGlyphs();
+  } else if (state.view === 'audit') {
+    renderRefSelect();
+    if (lastAudit) renderAudit(lastAudit); else runAudit();
+  }
+}
+const isCtrl = cp => cp < 0x21 || (cp >= 0x7F && cp <= 0xA0) || cp === 0xAD || (cp >= 0x2000 && cp <= 0x200F) || (cp >= 0xFE00 && cp <= 0xFE0F);
+function inventory(inf) {
+  if (inf._inv) return inf._inv;
+  const rev = new Map();
+  for (const [cp, g] of inf.cmapMap) if (!rev.has(g)) rev.set(g, cp);
+  const reach = new Set(rev.keys()), alts = new Map();
+  const tags = Object.keys(inf.subs || {}).filter(t => !REQUIRED.has(t)).sort((a, b) => (a === 'aalt') - (b === 'aalt') || a.localeCompare(b));
+  for (const tag of tags) for (const sb of inf.subs[tag]) {
+    if (reach.has(sb.out) || !sb.in.every(g => rev.has(g) && !isCtrl(rev.get(g)))) continue;
+    const text = sb.in.map(g => String.fromCodePoint(rev.get(g))).join('');
+    alts.set(`${tag}|${sb.n}|${text}`, { tag, n: sb.n, text });
+    reach.add(sb.out);
+  }
+  return (inf._inv = { alts, reached: reach.size, total: inf.numGlyphs });
+}
+function renderGlyphs() {
+  const h = $('#glyph-host'); h.innerHTML = '';
+  h.style.setProperty('--gcols', state.gcols);
+  $('#gcols').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.v === state.gcols));
+  const parsed = uniqueFonts().filter(f => f.info && f.info.cmapMap && f.info.cmapMap.size);
+  const hex = cp => 'U+' + cp.toString(16).toUpperCase().padStart(4, '0');
+  const sections = [];
+  if (parsed.length) {
+    const cps = [...new Set(parsed.flatMap(f => [...f.info.cmapMap.keys()]))].filter(cp => !isCtrl(cp)).sort((a, b) => a - b);
+    sections.push({ title: 'Encoded characters', items: cps.map(cp => ({ text: String.fromCodePoint(cp), label: hex(cp), miss: parsed.filter(f => !f.info.cmap(cp)).map(f => f.name) })) });
+    const invs = parsed.map(f => ({ f, inv: inventory(f.info) }));
+    const all = new Map();
+    invs.forEach(({ inv }) => inv.alts.forEach((v, k) => { if (!all.has(k)) all.set(k, v); }));
+    const byTag = new Map();
+    for (const [k, v] of all) {
+      if (!byTag.has(v.tag)) byTag.set(v.tag, []);
+      byTag.get(v.tag).push({ ...v, label: v.n > 1 ? `${v.tag} #${v.n}` : v.tag, miss: invs.filter(x => !x.inv.alts.has(k)).map(x => x.f.name) });
+    }
+    const ss = Object.assign({}, ...parsed.map(f => f.info.ssNames));
+    for (const [tag, items] of byTag) sections.push({ title: `${tag} · ${featName(tag, { ssNames: ss }) || 'Feature'}`, items });
+    $('#glyph-note').textContent = invs.map(({ f, inv }) => `${short(f.name)}: ${inv.reached} of ${inv.total} glyphs shown`).join(' · ') + '. Glyphs reached only through contextual rules or by combining features aren’t listed. Click a glyph to proof it. A red corner means at least one layer doesn’t have it.';
+  } else {
+    const chars = [...new Set([...state.charset.replace(/\s/g, '')])];
+    sections.push({ title: 'Character set', items: chars.map(ch => ({ text: ch, label: hex(ch.codePointAt(0)), miss: [] })) });
+    $('#glyph-note').textContent = 'Showing the Sync check character set. Load OTF, TTF or WOFF files to see every glyph and alternate.';
+  }
+  for (const sec of sections) {
+    const wrap = document.createElement('div'); wrap.className = 'gsec';
+    wrap.innerHTML = `<h3>${esc(sec.title)} <span>${sec.items.length}</span></h3>`;
+    const grid = document.createElement('div'); grid.className = 'glyphs';
+    for (const it of sec.items) {
+      const cell = document.createElement('div');
+      cell.className = 'gcell'; cell.dataset.ch = it.text; cell.tabIndex = 0;
+      if (it.tag) { cell.dataset.tag = it.tag; cell.dataset.n = it.n; }
+      if (it.miss.length) { cell.classList.add('miss'); cell.title = 'Missing in: ' + it.miss.join(', '); }
+      const st = makeStack(it.text, {});
+      if (it.tag) st.style.fontFeatureSettings = `"${it.tag}" ${it.n}`;
+      if ([...it.text].length > 2) st.classList.add('long');
+      cell.append(st);
+      const lb = document.createElement('span'); lb.className = 'hex'; lb.textContent = it.label;
+      cell.append(lb);
+      grid.append(cell);
+    }
+    wrap.append(grid);
+    h.append(wrap);
+  }
+}
+function renderAll() {
+  if (state.refFamily && !state.layers.some(l => l.family === state.refFamily)) state.refFamily = null;
+  renderLayers(); renderFeatures(); syncTypeControls(); applyVars(); renderView(); save();
+}
+
+/* ---------- measuring ---------- */
+const ctx = document.createElement('canvas').getContext('2d');
+function measurer(family) {
+  ctx.font = `1000px "${family}", "Adobe Blank", sans-serif`;
+  try { ctx.fontKerning = 'normal'; } catch {}
+  return s => ctx.measureText(s).width;
+}
+const applyCase = s => state.tcase === 'uppercase' ? s.toUpperCase() : state.tcase === 'lowercase' ? s.toLowerCase() : s;
+let driftT;
+function scheduleDrift() { clearTimeout(driftT); driftT = setTimeout(computeDrift, 180); }
+async function computeDrift() {
+  const pill = $('#drift'), sub = $('#drift-sub');
+  const seen = new Map();
+  for (const l of state.layers) if (l.visible && !seen.has(l.family)) seen.set(l.family, l);
+  const fs = [...seen.values()];
+  if (fs.length < 2) { pill.className = 'pill'; pill.textContent = 'Show two or more different fonts to check drift'; sub.textContent = ''; return; }
+  const text = applyCase(state.text);
+  try { await Promise.all(fs.map(f => document.fonts.load(`100px "${f.family}"`, text || 'a'))); } catch {}
+  const lines = text.split('\n');
+  const widths = fs.map(f => { const m = measurer(f.family); return lines.map(m); });
+  let worst = { d: 0 };
+  for (let i = 1; i < fs.length; i++) lines.forEach((_, j) => {
+    const d = widths[i][j] - widths[0][j];
+    if (Math.abs(d) > Math.abs(worst.d)) worst = { d, f: fs[i], j };
+  });
+  const ref = fs[0];
+  if (Math.abs(worst.d) < 0.5) {
+    pill.className = 'pill good';
+    pill.textContent = `Widths match across ${fs.length} fonts`;
+    sub.textContent = `${Math.round(widths[0].reduce((a, b) => Math.max(a, b), 0)).toLocaleString()} units per 1000 em on the longest line`;
+  } else {
+    const r = Math.round(Math.abs(worst.d) * 10) / 10;
+    pill.className = 'pill warn';
+    pill.textContent = `${short(worst.f.name)} is ${r} units ${worst.d > 0 ? 'wider' : 'narrower'} than ${short(ref.name)}${lines.length > 1 ? ' on line ' + (worst.j + 1) : ''}`;
+    sub.textContent = `≈ ${(Math.abs(worst.d) / 1000 * state.size).toFixed(2)} px at ${state.size} px. Open Sync check for the glyphs and pairs responsible.`;
+  }
+}
+
+/* ---------- sync check ---------- */
+function renderRefSelect() {
+  const fs = uniqueFonts();
+  $('#ref').innerHTML = fs.map(f => `<option value="${esc(f.family)}" ${f.family === state.refFamily ? 'selected' : ''}>${esc(f.name)}</option>`).join('');
+}
+const tick = () => new Promise(r => setTimeout(r, 0));
+async function runAudit() {
+  const out = $('#audit-out'), btn = $('#run');
+  const fs = uniqueFonts();
+  if (fs.length < 2) { out.innerHTML = '<p class="empty">Add at least two different fonts to compare them.</p>'; setDot(null); return; }
+  btn.disabled = true; btn.textContent = 'Measuring…';
+  out.innerHTML = '<p class="empty">Measuring widths and pairs…</p>';
+  const ref = fs.find(f => f.family === state.refFamily) || fs[0];
+  const order = [ref, ...fs.filter(f => f !== ref)];
+  const chars = [...new Set([...state.charset.replace(/\s/g, '')])];
+  try { await Promise.all(order.map(f => document.fonts.load(`100px "${f.family}"`, chars.join('')))); } catch {}
+  const n = chars.length;
+  const has = order.map(f => chars.map(c => (f.info && f.info.cmap) ? f.info.cmap(c.codePointAt(0)) : true));
+  const adv = [], kern = [];
+  for (const f of order) {
+    const m = measurer(f.family);
+    const a = chars.map(m);
+    const k = new Float32Array(n * n);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) k[i * n + j] = m(chars[i] + chars[j]) - a[i] - a[j];
+      if (i % 24 === 23) { await tick(); ctx.font = `1000px "${f.family}", "Adobe Blank", sans-serif`; }
+    }
+    adv.push(a); kern.push(k);
+  }
+  const r1 = v => Math.round(v * 10) / 10;
+  const missing = order.map((f, fi) => ({ f, chars: chars.filter((c, i) => !has[fi][i]) })).filter(x => x.f.info && x.f.info.cmap && x.chars.length);
+  const advRows = [];
+  for (let i = 0; i < n; i++) {
+    if (!has.every(h => h[i])) continue;
+    const vals = adv.map(a => a[i]);
+    const max = Math.max(...vals.map(v => Math.abs(v - vals[0])));
+    if (max >= 0.5) advRows.push({ s: chars[i], vals, max });
+  }
+  advRows.sort((a, b) => b.max - a.max);
+  const kernRows = [];
+  let pairsChecked = 0;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    if (!has.every(h => h[i] && h[j])) continue;
+    pairsChecked++;
+    const p = i * n + j, vals = kern.map(k => k[p]);
+    const max = Math.max(...vals.map(v => Math.abs(v - vals[0])));
+    if (max >= 0.5) kernRows.push({ s: chars[i] + chars[j], vals, max });
+  }
+  kernRows.sort((a, b) => b.max - a.max);
+  // Vertical metrics decide where the first baseline sits in an InDesign frame.
+  const MET = [['upm', 'Units per em'], ['hheaAsc', 'hhea ascender'], ['hheaDesc', 'hhea descender'], ['hheaGap', 'hhea line gap'], ['typoAsc', 'Typo ascender'], ['typoDesc', 'Typo descender'], ['typoGap', 'Typo line gap'], ['winAsc', 'Win ascent'], ['winDesc', 'Win descent'], ['useTypo', 'Use typo metrics'], ['capHeight', 'Cap height'], ['xHeight', 'x-height']];
+  const parsedM = order.map(f => f.info && f.info.metrics);
+  const metRows = parsedM.filter(Boolean).length >= 2 ? MET.map(([k, label]) => ({ label, vals: parsedM.map(m => m ? m[k] : undefined) })).filter(r => r.vals.some(v => v !== undefined)) : [];
+  const metBad = metRows.filter(r => r.vals.some(v => v !== undefined && r.vals[0] !== undefined && v !== r.vals[0]));
+  const parsedF = order.filter(f => f.info && f.info.features);
+  const featRows = parsedF.length >= 2 ? [...new Set(parsedF.flatMap(f => [...f.info.features]))].sort().map(t => ({ t, has: order.map(f => f.info && f.info.features ? f.info.features.has(t) : null) })).filter(r => r.has.some(h => h === false)) : [];
+  lastAudit = { order, chars, advRows, kernRows, missing, metRows, metBad, featRows, pairsChecked, r1 };
+  btn.disabled = false; btn.textContent = 'Run check';
+  $('#copy').disabled = false;
+  renderAudit(lastAudit);
+}
+function setDot(ok) { const d = $('#audit-dot'); d.className = 'dot' + (ok === null ? '' : ok ? ' good' : ' warn'); }
+function renderAudit(A) {
+  const { order, advRows, kernRows, missing, metRows, metBad, featRows, pairsChecked, chars, r1 } = A;
+  const missCount = missing.reduce((a, m) => a + m.chars.length, 0);
+  const ok = !advRows.length && !kernRows.length && !metBad.length && !missCount;
+  setDot(ok);
+  const sum = (b, label, bad) => `<div class="sum ${bad ? 'warn' : ''}"><b>${b}</b><span>${label}</span></div>`;
+  const head = `<th>Glyphs</th>${order.map((f, i) => `<th>${esc(short(f.name))}${i === 0 ? ' (ref)' : ''}</th>`).join('')}<th>Max Δ</th>`;
+  const row = (r, isPair) => `<tr class="click" data-proof="${esc(r.s)}" title="Proof in Tester"><td class="g" style="font-family:'${order[0].family}'">${esc(r.s)}</td>${r.vals.map((v, i) => `<td class="n ${i && Math.abs(v - r.vals[0]) >= 0.5 ? 'bad' : ''}">${r1(v)}${i ? `<br><small>${v - r.vals[0] > 0 ? '+' : ''}${r1(v - r.vals[0])}</small>` : ''}</td>`).join('')}<td class="n">${r1(r.max)}</td></tr>`;
+  const LIMIT = 400;
+  let html = `<div class="summary">
+    ${sum(advRows.length, `advance widths differ (of ${chars.length})`, advRows.length)}
+    ${sum(kernRows.length.toLocaleString(), `kerning pairs differ (of ${pairsChecked.toLocaleString()})`, kernRows.length)}
+    ${sum(metRows.length ? metBad.length : '–', metRows.length ? 'vertical metrics differ' : 'metrics need OTF/TTF/WOFF', metBad.length)}
+    ${sum(missing.length ? missCount : (order.some(f => f.info && f.info.cmap) ? 0 : '–'), 'glyphs missing in a layer', missCount)}
+  </div>`;
+  if (ok) html += `<p class="note" style="color:var(--good)">Everything checked is in sync with ${esc(order[0].name)}.</p>`;
+  if (metBad.length) html += `<h3>Vertical metrics</h3><p class="note">Differences here move the first baseline in an InDesign text frame, so stacked frames won’t line up even when spacing matches.</p><div class="tablewrap"><table><thead><tr><th>Metric</th>${order.map(f => `<th>${esc(short(f.name))}</th>`).join('')}</tr></thead><tbody>${metRows.map(r => `<tr><td>${r.label}</td>${r.vals.map((v, i) => `<td class="n ${i && v !== undefined && v !== r.vals[0] ? 'bad' : ''}">${v ?? '–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  if (missing.length) html += `<h3>Missing glyphs</h3>${missing.map(m => `<p style="margin:0"><b>${esc(m.f.name)}</b> has no glyph for: <span style="font-family:var(--font-mono)">${esc(m.chars.join(' '))}</span></p>`).join('')}`;
+  if (advRows.length) html += `<h3>Advance widths</h3><p class="note">Click a row to proof it.</p><div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${advRows.slice(0, LIMIT).map(r => row(r)).join('')}</tbody></table></div>`;
+  if (kernRows.length) html += `<h3>Kerning pairs</h3><p class="note">Pair adjustment in each font. ${kernRows.length > LIMIT ? `Showing the ${LIMIT} largest of ${kernRows.length.toLocaleString()}.` : ''} Pairs whose glyphs already differ in width also show here when their kerning differs.</p><div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${kernRows.slice(0, LIMIT).map(r => row(r, true)).join('')}</tbody></table></div>`;
+  if (featRows.length) html += `<h3>OpenType features not in every layer</h3><div class="tablewrap"><table><thead><tr><th>Feature</th>${order.map(f => `<th>${esc(short(f.name))}</th>`).join('')}</tr></thead><tbody>${featRows.map(r => `<tr><td><code>${r.t}</code> ${esc(featName(r.t))}</td>${r.has.map(h => `<td class="${h === false ? 'bad' : ''}">${h === null ? '–' : h ? 'Yes' : 'Missing'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  $('#audit-out').innerHTML = html;
+}
+function proofString(s) {
+  const c = /^[a-zß-ÿœ]+$/.test(s) ? ['n', 'o'] : /^[0-9]+$/.test(s) ? ['0', '1'] : ['H', 'O'];
+  return `${c[0]}${c[0]}${s}${c[0]}${c[0]} ${c[1]}${c[1]}${s}${c[1]}${c[1]}`;
+}
+function reportText(A) {
+  const L = [];
+  const names = A.order.map(f => f.name);
+  L.push(`Layer sync check — reference: ${names[0]}`, `Compared: ${names.slice(1).join(', ')}`, '');
+  L.push(`Advance widths differing: ${A.advRows.length} of ${A.chars.length}`);
+  A.advRows.forEach(r => L.push(`  ${r.s}\t${r.vals.map(A.r1).join('\t')}`));
+  L.push('', `Kerning pairs differing: ${A.kernRows.length} of ${A.pairsChecked}`);
+  A.kernRows.slice(0, 1000).forEach(r => L.push(`  ${r.s}\t${r.vals.map(A.r1).join('\t')}`));
+  if (A.metBad.length) { L.push('', 'Vertical metrics differing:'); A.metBad.forEach(r => L.push(`  ${r.label}\t${r.vals.join('\t')}`)); }
+  if (A.missing.length) { L.push('', 'Missing glyphs:'); A.missing.forEach(m => L.push(`  ${m.f.name}: ${m.chars.join(' ')}`)); }
+  if (A.featRows.length) { L.push('', 'Features not in every layer:'); A.featRows.forEach(r => L.push(`  ${r.t}: ${A.order.filter((f, i) => r.has[i] === false).map(f => f.name).join(', ')} missing`)); }
+  return L.join('\n');
+}
+
+/* ---------- events ---------- */
+let toastT;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2800); }
+
+$('#pick').addEventListener('click', () => $('#file').click());
+$('#file').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
+$('#clear').addEventListener('click', async e => {
+  const b = e.currentTarget;
+  if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'Click again to clear'; setTimeout(() => { b.dataset.confirm = ''; b.textContent = 'Clear all'; }, 3000); return; }
+  b.dataset.confirm = ''; b.textContent = 'Clear all';
+  await idb('readwrite', s => s.clear());
+  for (const k of Object.keys(fonts)) delete fonts[k];
+  state.layers = []; state.features = {}; lastAudit = null;
+  renderAll();
+});
+
+let veilN = 0;
+const isFileDrag = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+window.addEventListener('dragenter', e => { if (isFileDrag(e)) { veilN++; $('#veil').hidden = false; } });
+window.addEventListener('dragleave', e => { if (isFileDrag(e) && --veilN <= 0) { veilN = 0; $('#veil').hidden = true; } });
+window.addEventListener('dragover', e => { if (isFileDrag(e)) e.preventDefault(); });
+window.addEventListener('drop', e => { if (!isFileDrag(e)) return; e.preventDefault(); veilN = 0; $('#veil').hidden = true; addFiles(e.dataTransfer.files); });
+
+const ul = $('#layers');
+const layerOf = el => state.layers.find(l => l.id === el.closest('.layer').dataset.id);
+ul.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const l = layerOf(b), i = state.layers.indexOf(l);
+  const act = b.dataset.act;
+  if (act === 'eye') { l.visible = !l.visible; renderAll(); }
+  else if (act === 'up') moveLayer(l.id, i - 1);
+  else if (act === 'down') moveLayer(l.id, i + 1);
+  else if (act === 'dup') { const c = newLayer({ ...l, id: uid(), name: l.name + ' copy', axes: { ...l.axes } }); state.layers.splice(i, 0, c); state.openCards.push(c.id); renderAll(); }
+  else if (act === 'del') removeLayer(l.id);
+});
+ul.addEventListener('input', e => {
+  const t = e.target, l = layerOf(t);
+  if (t.dataset.k) {
+    const k = t.dataset.k;
+    l[k] = (k === 'color' || k === 'blend') ? t.value : (+t.value || 0);
+    if (k === 'opacity') t.nextElementSibling.textContent = t.value + '%';
+  } else if (t.dataset.axis) {
+    l.axes[t.dataset.axis] = +t.value;
+    t.nextElementSibling.textContent = Math.round(+t.value);
+  }
+  renderView(); save();
+});
+ul.addEventListener('change', e => { if (e.target.dataset.k && e.target.dataset.k !== 'color') renderLayers(); });
+ul.addEventListener('toggle', e => {
+  const li = e.target.closest('.layer'); if (!li) return;
+  const id = li.dataset.id;
+  state.openCards = state.openCards.filter(x => x !== id);
+  if (e.target.open) state.openCards.push(id);
+  save();
+}, true);
+let dragId = null;
+ul.addEventListener('dragstart', e => {
+  const g = e.target.closest('.grip'); if (!g) return;
+  const li = g.closest('.layer'); dragId = li.dataset.id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', dragId);
+  try { e.dataTransfer.setDragImage(li, 20, 20); } catch {}
+});
+ul.addEventListener('dragover', e => {
+  if (!dragId) return;
+  const li = e.target.closest('.layer'); if (!li) return;
+  e.preventDefault();
+  ul.querySelectorAll('.layer').forEach(x => x.classList.remove('drop-before', 'drop-after'));
+  const r = li.getBoundingClientRect();
+  li.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after');
+});
+ul.addEventListener('drop', e => {
+  if (!dragId) return;
+  e.preventDefault(); e.stopPropagation();
+  const li = e.target.closest('.layer');
+  if (li && li.dataset.id !== dragId) {
+    const after = li.classList.contains('drop-after');
+    const from = state.layers.findIndex(l => l.id === dragId);
+    let to = state.layers.findIndex(l => l.id === li.dataset.id) + (after ? 1 : 0);
+    if (from < to) to--;
+    moveLayer(dragId, to);
+  }
+  dragId = null;
+});
+ul.addEventListener('dragend', () => { dragId = null; ul.querySelectorAll('.layer').forEach(x => x.classList.remove('drop-before', 'drop-after')); });
+
+for (const k of ['size', 'leading', 'tracking']) {
+  const set = v => { state[k] = +v; $('#' + k).value = v; $('#' + k + '-n').value = v; applyVars(); save(); if (k === 'size') scheduleDrift(); };
+  $('#' + k).addEventListener('input', e => set(e.target.value));
+  $('#' + k + '-n').addEventListener('input', e => { if (e.target.value !== '') set(e.target.value); });
+}
+for (const k of ['align', 'tcase']) $('#' + k).addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  state[k] = b.dataset.v; syncTypeControls(); applyVars(); save(); if (k === 'tcase') scheduleDrift();
+});
+$('#paper').addEventListener('input', e => { state.paper = e.target.value; $('#paper-hex').textContent = state.paper; applyVars(); save(); });
+$('#feats').addEventListener('change', e => { const t = e.target.dataset.tag; if (!t) return; state.features[t] = e.target.checked; applyVars(); save(); });
+$('#feat-reset').addEventListener('click', () => { state.features = {}; renderFeatures(); applyVars(); save(); });
+
+document.querySelector('.tabs').addEventListener('click', e => {
+  const t = e.target.closest('.tab'); if (!t) return;
+  state.view = t.dataset.view; renderView(); save();
+});
+$('#presets').addEventListener('click', e => {
+  const b = e.target.closest('[data-p]'); if (!b) return;
+  const [gi, ii] = b.dataset.p.split('.').map(Number);
+  const v = PRESETS[gi].items[ii][1];
+  const text = typeof v === 'function' ? v() : v;
+  if (state.view === 'paragraph') state.longText = text; else state.text = text;
+  renderView(); save();
+});
+$('#glyph-host').addEventListener('click', e => {
+  const c = e.target.closest('.gcell'); if (!c) return;
+  state.text = proofString(c.dataset.ch);
+  if (c.dataset.tag && c.dataset.n === '1' && !(state.features[c.dataset.tag] ?? DEFAULT_ON.has(c.dataset.tag))) {
+    state.features[c.dataset.tag] = true; renderFeatures(); applyVars(); toast('Turned on ' + c.dataset.tag);
+  }
+  state.view = 'tester'; renderView(); save();
+});
+$('#gcols').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  state.gcols = +b.dataset.v;
+  $('#glyph-host').style.setProperty('--gcols', state.gcols);
+  $('#gcols').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  save();
+});
+$('#glyph-host').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.click(); });
+$('#ref').addEventListener('change', e => { state.refFamily = e.target.value; save(); runAudit(); });
+$('#charset').addEventListener('input', e => { state.charset = e.target.value; save(); });
+$('#run').addEventListener('click', runAudit);
+$('#audit-out').addEventListener('click', e => {
+  const r = e.target.closest('[data-proof]'); if (!r) return;
+  state.text = proofString(r.dataset.proof); state.view = 'tester'; renderView(); save();
+});
+$('#copy').addEventListener('click', async () => {
+  if (!lastAudit) return;
+  const txt = reportText(lastAudit);
+  try { await navigator.clipboard.writeText(txt); toast('Report copied'); }
+  catch { const ta = document.createElement('textarea'); ta.value = txt; document.body.append(ta); ta.select(); try { document.execCommand('copy'); toast('Report copied'); } catch { toast('Copy blocked. Select the tables instead.'); } ta.remove(); }
+});
+
+/* ---------- boot ---------- */
+async function boot() {
+  const saved = loadLS();
+  const savedLayers = saved && saved.layers;
+  if (saved) for (const k of ['view', 'text', 'longText', 'size', 'leading', 'tracking', 'align', 'tcase', 'paper', 'features', 'charset', 'refFamily', 'openCards', 'gcols']) if (saved[k] !== undefined) state[k] = saved[k];
+  state.layers = [];
+  renderAll();
+  if (!savedLayers || !savedLayers.some(l => !l.example)) return;
+  const stored = await idb('readonly', s => s.getAll());
+  if (!stored || !stored.length) return;
+  const byId = Object.fromEntries(stored.map(r => [r.id, r]));
+  const restored = [];
+  for (const l of savedLayers) {
+    if (l.example || !byId[l.fontId]) continue;
+    try {
+      const F = await registerFont(l.fontId, byId[l.fontId].buf, byId[l.fontId].file);
+      restored.push({ ...newLayer(), ...l, family: F.family });
+    } catch {}
+  }
+  if (restored.length) { state.layers = restored; renderAll(); }
+}
+document.fonts.ready.then(() => scheduleDrift());
+boot();
+})();
+</script>
+</body>
+</html>
