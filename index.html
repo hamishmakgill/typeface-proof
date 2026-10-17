@@ -74,7 +74,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .layers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .layer { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); }
 .layer.off .lname { opacity: .45; }
-.layer.dragging { opacity: .5; }
+.layer.dragging { opacity: .3; }
+.drag-ghost { position: fixed; z-index: 60; margin: 0; pointer-events: none; list-style: none; box-shadow: 0 10px 28px rgba(0, 0, 0, .22); transform: rotate(-1deg) scale(1.02); cursor: grabbing; }
 .layer.dragging .lrow { cursor: grabbing; }
 .layer.drop-before { box-shadow: 0 -3px 0 var(--accent); }
 .layer.drop-after { box-shadow: 0 3px 0 var(--accent); }
@@ -1119,8 +1120,19 @@ ul.addEventListener('pointerdown', e => {
 ul.addEventListener('pointermove', e => {
   if (!drag) return;
   if (!drag.moved && Math.abs(e.clientY - drag.y0) < 4) return;
-  drag.moved = true;
+  if (!drag.moved) {
+    drag.moved = true;
+    const r = drag.li.getBoundingClientRect();
+    const g = drag.li.cloneNode(true);
+    g.querySelectorAll('[id]').forEach(x => x.removeAttribute('id'));
+    g.classList.add('drag-ghost');
+    g.removeAttribute('data-id');
+    Object.assign(g.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px' });
+    document.body.append(g);
+    drag.ghost = g; drag.top0 = r.top;
+  }
   e.preventDefault();
+  drag.ghost.style.top = (drag.top0 + e.clientY - drag.y0) + 'px';
   const items = [...ul.querySelectorAll('.layer')];
   items.forEach(x => x.classList.remove('drop-before', 'drop-after'));
   drag.li.classList.add('dragging');
@@ -1132,6 +1144,7 @@ ul.addEventListener('pointermove', e => {
 const endDrag = () => {
   if (!drag) return;
   const d = drag; drag = null;
+  if (d.ghost) d.ghost.remove();
   ul.querySelectorAll('.layer').forEach(x => x.classList.remove('drop-before', 'drop-after', 'dragging'));
   if (!d.moved || !d.target) return;
   const from = state.layers.findIndex(l => l.id === d.id);
