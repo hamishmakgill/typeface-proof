@@ -74,9 +74,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .layers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .layer { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); }
 .layer.off .lname { opacity: .45; }
+.layer.dragging { opacity: .5; }
+.layer.dragging .lrow { cursor: grabbing; }
 .layer.drop-before { box-shadow: 0 -3px 0 var(--accent); }
 .layer.drop-after { box-shadow: 0 3px 0 var(--accent); }
-.lrow { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 6px 6px 6px 4px; }
+.lrow { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; display: grid; grid-template-columns: auto auto auto minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 6px 6px 6px 4px; }
 .grip { cursor: grab; color: var(--muted); padding: 4px 3px; font-size: 13px; letter-spacing: -2px; user-select: none; }
 .eye { width: 28px; height: 28px; border: 0; background: transparent; border-radius: 6px; display: grid; place-items: center; cursor: pointer; color: var(--fg); }
 .eye:hover { background: var(--chip); }
@@ -88,7 +90,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .lname strong { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lname small { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lbtns { display: flex; }
-.lbtns .btn.ghost { font-size: 14px; line-height: 1; padding: 5px 5px; }
+.lbtns .btn.ghost { color: var(--fg); font-size: 14px; line-height: 1; padding: 5px 5px; }
 .layer details { border-top: 1px solid var(--line); }
 .layer summary { cursor: pointer; padding: 6px 10px; font-size: 12px; color: var(--muted); list-style: none; display: flex; justify-content: space-between; }
 .layer summary::-webkit-details-marker { display: none; }
@@ -735,7 +737,7 @@ function renderLayers() {
     li.dataset.id = l.id;
     li.innerHTML = `
       <div class="lrow">
-        <span class="grip" draggable="true" title="Drag to reorder">⋮⋮</span>
+        <span class="grip" title="Drag to reorder" aria-hidden="true">⋮⋮</span>
         <button class="eye" type="button" data-act="eye" aria-pressed="${l.visible}" aria-label="${l.visible ? 'Hide' : 'Show'} ${esc(l.name)}">${l.visible ? EYE : EYE_OFF}</button>
         <input type="color" class="swatch" id="c-${l.id}" data-k="color" value="${l.color}" aria-label="Colour for ${esc(l.name)}">
         <div class="lname"><strong title="${esc(l.name)}">${esc(l.name)}</strong><small>${esc(sub)}</small></div>
@@ -1106,36 +1108,39 @@ ul.addEventListener('toggle', e => {
   if (e.target.open) state.openCards.push(id);
   save();
 }, true);
-let dragId = null;
-ul.addEventListener('dragstart', e => {
-  const g = e.target.closest('.grip'); if (!g) return;
-  const li = g.closest('.layer'); dragId = li.dataset.id;
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/plain', dragId);
-  try { e.dataTransfer.setDragImage(li, 20, 20); } catch {}
-});
-ul.addEventListener('dragover', e => {
-  if (!dragId) return;
-  const li = e.target.closest('.layer'); if (!li) return;
-  e.preventDefault();
-  ul.querySelectorAll('.layer').forEach(x => x.classList.remove('drop-before', 'drop-after'));
-  const r = li.getBoundingClientRect();
-  li.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after');
-});
-ul.addEventListener('drop', e => {
-  if (!dragId) return;
-  e.preventDefault(); e.stopPropagation();
+// Pointer-based reordering: drag any card's header row (works with mouse, trackpad and touch in every browser).
+let drag = null;
+ul.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || !e.target.closest('.lrow') || e.target.closest('button, input, select')) return;
   const li = e.target.closest('.layer');
-  if (li && li.dataset.id !== dragId) {
-    const after = li.classList.contains('drop-after');
-    const from = state.layers.findIndex(l => l.id === dragId);
-    let to = state.layers.findIndex(l => l.id === li.dataset.id) + (after ? 1 : 0);
-    if (from < to) to--;
-    moveLayer(dragId, to);
-  }
-  dragId = null;
+  drag = { id: li.dataset.id, li, y0: e.clientY, moved: false, target: null, after: false };
+  try { ul.setPointerCapture(e.pointerId); } catch {}
 });
-ul.addEventListener('dragend', () => { dragId = null; ul.querySelectorAll('.layer').forEach(x => x.classList.remove('drop-before', 'drop-after')); });
+ul.addEventListener('pointermove', e => {
+  if (!drag) return;
+  if (!drag.moved && Math.abs(e.clientY - drag.y0) < 4) return;
+  drag.moved = true;
+  e.preventDefault();
+  const items = [...ul.querySelectorAll('.layer')];
+  items.forEach(x => x.classList.remove('drop-before', 'drop-after'));
+  drag.li.classList.add('dragging');
+  drag.target = items.find(x => { const r = x.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
+  drag.after = !drag.target;
+  if (!drag.target) drag.target = items[items.length - 1];
+  drag.target.classList.add(drag.after ? 'drop-after' : 'drop-before');
+});
+const endDrag = () => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  ul.querySelectorAll('.layer').forEach(x => x.classList.remove('drop-before', 'drop-after', 'dragging'));
+  if (!d.moved || !d.target) return;
+  const from = state.layers.findIndex(l => l.id === d.id);
+  let to = state.layers.findIndex(l => l.id === d.target.dataset.id) + (d.after ? 1 : 0);
+  if (from < to) to--;
+  if (to !== from) moveLayer(d.id, to);
+};
+ul.addEventListener('pointerup', endDrag);
+ul.addEventListener('pointercancel', endDrag);
 
 for (const k of ['size', 'leading', 'tracking']) {
   const set = v => { state[k] = +v; $('#' + k).value = v; $('#' + k + '-n').value = v; applyVars(); save(); if (k === 'size') scheduleDrift(); };
