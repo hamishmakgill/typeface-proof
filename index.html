@@ -182,7 +182,14 @@ input[type="range"]::-moz-range-thumb { width: 10px; height: 10px; border-radius
 .gbar .note { flex: 1 1 320px; }
 .gbar .field { flex-direction: row; align-items: center; gap: 8px; }
 .gbar .seg button { padding: 5px 12px; }
-.gcell .hex { position: absolute; bottom: 3px; font-family: var(--font-mono); font-size: 9px; color: #8a8f99; }
+.gdiff { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--good); border-radius: var(--r); padding: 10px 14px; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+.gdiff.bad { border-left-color: var(--warn); }
+.gdiff summary { cursor: pointer; }
+.gdiff summary b { color: var(--warn); font-weight: 600; }
+.gdiff p { margin: 8px 0 2px; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.7; word-spacing: 6px; color: var(--fg); }
+.gonly { flex-direction: row !important; align-items: center; gap: 6px !important; font-size: 12.5px !important; color: var(--fg) !important; cursor: pointer; }
+.gonly input { accent-color: var(--fg); margin: 0; }
+.gcell .hex { max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;  position: absolute; bottom: 3px; font-family: var(--font-mono); font-size: 9px; color: #8a8f99; }
 .gcell.miss::after { content: ""; position: absolute; top: 0; right: 0; border: 7px solid transparent; border-top-color: var(--warn); border-right-color: var(--warn); }
 .gcell:hover { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
 
@@ -307,6 +314,7 @@ tr.click:hover td { background: var(--chip); }
             <button type="button" data-v="14">14</button><button type="button" data-v="9">9</button><button type="button" data-v="6">6</button>
           </div>
         </div>
+        <label class="field gonly"><input type="checkbox" id="g-only"> Only glyphs missing from a layer</label>
         <p class="note" id="glyph-note"></p>
       </div>
       <div class="gsecs" id="glyph-host"></div>
@@ -371,7 +379,7 @@ const PRESETS = [
 const state = {
   layers: [], view: 'tester', text: 'Central Avenue', longText: PARA,
   size: 160, leading: 115, tracking: 0, align: 'left', tcase: 'none', paper: '#ffffff',
-  features: {}, charset: DEFAULT_CHARSET, refFamily: null, openCards: [], gcols: 14
+  features: {}, charset: DEFAULT_CHARSET, refFamily: null, openCards: [], gcols: 14, gOnlyMiss: false
 };
 const fonts = {}; // fontId -> { family, info, file }
 let lastAudit = null;
@@ -555,6 +563,58 @@ function readSubs(t) {
   }
   return out;
 }
+// Glyph names: CFF charset (custom strings only) or post table format 2. Unnamed glyphs fall back to uniXXXX from the cmap.
+function cffIndex(t, o) {
+  const count = t.getUint16(o);
+  if (!count) return { end: o + 2, items: [] };
+  const os = t.getUint8(o + 2);
+  const rd = q => { let v = 0; for (let i = 0; i < os; i++) v = v * 256 + t.getUint8(q + i); return v; };
+  const offs = [];
+  for (let i = 0; i <= count; i++) offs.push(rd(o + 3 + i * os));
+  const base = o + 3 + (count + 1) * os - 1;
+  return { end: base + offs[count], items: offs.slice(0, -1).map((a, i) => [base + a, base + offs[i + 1]]) };
+}
+function readCffNames(t) {
+  if (!t) return null;
+  const nameIdx = cffIndex(t, t.getUint8(2)), top = cffIndex(t, nameIdx.end), str = cffIndex(t, top.end);
+  if (!top.items.length) return null;
+  const [a, b] = top.items[0], dict = {};
+  let ops = [];
+  for (let q = a; q < b;) {
+    const b0 = t.getUint8(q);
+    if (b0 <= 21) { let op = b0; q++; if (b0 === 12) op = 1200 + t.getUint8(q++); dict[op] = ops; ops = []; }
+    else if (b0 === 28) { ops.push(t.getInt16(q + 1)); q += 3; }
+    else if (b0 === 29) { ops.push(t.getInt32(q + 1)); q += 5; }
+    else if (b0 === 30) { q++; for (;;) { const nb = t.getUint8(q++); if ((nb & 15) === 15 || (nb >> 4) === 15) break; } ops.push(0); }
+    else if (b0 >= 32 && b0 <= 246) { ops.push(b0 - 139); q++; }
+    else if (b0 >= 247 && b0 <= 250) { ops.push((b0 - 247) * 256 + t.getUint8(q + 1) + 108); q += 2; }
+    else if (b0 >= 251 && b0 <= 254) { ops.push(-(b0 - 251) * 256 - t.getUint8(q + 1) - 108); q += 2; }
+    else q++;
+  }
+  if (!dict[17] || !dict[15] || dict[15][0] < 3) return null;
+  const n = t.getUint16(dict[17][0]);
+  const strings = str.items.map(([x, y]) => { let r = ''; for (let i = x; i < y; i++) r += String.fromCharCode(t.getUint8(i)); return r; });
+  const sid = v => v >= 391 ? strings[v - 391] || null : null;
+  const names = new Array(n).fill(null);
+  names[0] = '.notdef';
+  let q = dict[15][0], g = 1;
+  const fmt = t.getUint8(q++);
+  if (fmt === 0) for (; g < n; g++, q += 2) names[g] = sid(t.getUint16(q));
+  else while (g < n) {
+    const first = t.getUint16(q), left = fmt === 1 ? t.getUint8(q + 2) : t.getUint16(q + 2);
+    q += fmt === 1 ? 3 : 4;
+    for (let i = 0; i <= left && g < n; i++, g++) names[g] = sid(first + i);
+  }
+  return names;
+}
+function readPostNames(t) {
+  if (!t || t.getUint32(0) !== 0x00020000) return null;
+  const n = t.getUint16(32), idx = [];
+  for (let i = 0; i < n; i++) idx.push(t.getUint16(34 + 2 * i));
+  const custom = [];
+  for (let q = 34 + 2 * n; q < t.byteLength;) { const len = t.getUint8(q++); let r = ''; for (let i = 0; i < len; i++) r += String.fromCharCode(t.getUint8(q + i)); custom.push(r); q += len; }
+  return idx.map(i => i >= 258 ? custom[i - 258] || null : null);
+}
 function readMetrics(T) {
   const m = {};
   if (T.head) m.upm = T.head.getUint16(18);
@@ -573,6 +633,10 @@ async function analyse(buf) {
     if (!T) return { kind };
     const names = readNames(T.name);
     const gsub = readFeatures(T.GSUB, names), gpos = readFeatures(T.GPOS, names);
+    const cm = cmapInfo(T.cmap);
+    let glyphNames = null;
+    try { glyphNames = readCffNames(T['CFF ']) || readPostNames(T.post); } catch {}
+    if (glyphNames) for (const [cp, g] of cm.cmapMap) if (!glyphNames[g]) glyphNames[g] = 'uni' + cp.toString(16).toUpperCase().padStart(4, '0');
     return {
       kind,
       fullName: names[4] || [names[16] || names[1], names[17] || names[2]].filter(Boolean).join(' '),
@@ -580,7 +644,8 @@ async function analyse(buf) {
       features: new Set([...gsub.tags, ...gpos.tags]),
       ssNames: { ...gsub.ssNames, ...gpos.ssNames },
       axes: readAxes(T.fvar, names),
-      ...cmapInfo(T.cmap),
+      ...cm,
+      glyphNames,
       subs: readSubs(T.GSUB),
       numGlyphs: T.maxp ? T.maxp.getUint16(4) : 0,
       metrics: readMetrics(T)
@@ -856,7 +921,7 @@ function inventory(inf) {
   for (const tag of tags) for (const sb of inf.subs[tag]) {
     if (reach.has(sb.out) || !sb.in.every(g => rev.has(g) && !isCtrl(rev.get(g)))) continue;
     const text = sb.in.map(g => String.fromCodePoint(rev.get(g))).join('');
-    alts.set(`${tag}|${sb.n}|${text}`, { tag, n: sb.n, text });
+    alts.set(`${tag}|${sb.n}|${text}`, { tag, n: sb.n, text, name: inf.glyphNames && inf.glyphNames[sb.out] });
     reach.add(sb.out);
   }
   return (inf._inv = { alts, reached: reach.size, total: inf.numGlyphs });
@@ -864,23 +929,37 @@ function inventory(inf) {
 function renderGlyphs() {
   const h = $('#glyph-host'); h.innerHTML = '';
   h.style.setProperty('--gcols', state.gcols);
+  $('#g-only').checked = state.gOnlyMiss;
   $('#gcols').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.v === state.gcols));
   const parsed = uniqueFonts().filter(f => f.info && f.info.cmapMap && f.info.cmapMap.size);
   const hex = cp => 'U+' + cp.toString(16).toUpperCase().padStart(4, '0');
   const sections = [];
   if (parsed.length) {
     const cps = [...new Set(parsed.flatMap(f => [...f.info.cmapMap.keys()]))].filter(cp => !isCtrl(cp)).sort((a, b) => a - b);
-    sections.push({ title: 'Encoded characters', items: cps.map(cp => ({ text: String.fromCodePoint(cp), label: hex(cp), miss: parsed.filter(f => !f.info.cmap(cp)).map(f => f.name) })) });
+    const nameOf = cp => { for (const f of parsed) { const g = f.info.cmapMap.get(cp); if (g && f.info.glyphNames) return f.info.glyphNames[g]; } return ''; };
+    sections.push({ title: 'Encoded characters', items: cps.map(cp => ({ text: String.fromCodePoint(cp), label: hex(cp), name: nameOf(cp), miss: parsed.filter(f => !f.info.cmap(cp)).map(f => f.name) })) });
     const invs = parsed.map(f => ({ f, inv: inventory(f.info) }));
     const all = new Map();
     invs.forEach(({ inv }) => inv.alts.forEach((v, k) => { if (!all.has(k)) all.set(k, v); }));
     const byTag = new Map();
     for (const [k, v] of all) {
       if (!byTag.has(v.tag)) byTag.set(v.tag, []);
-      byTag.get(v.tag).push({ ...v, label: v.n > 1 ? `${v.tag} #${v.n}` : v.tag, miss: invs.filter(x => !x.inv.alts.has(k)).map(x => x.f.name) });
+      byTag.get(v.tag).push({ ...v, label: v.name || (v.n > 1 ? `${v.tag} #${v.n}` : v.tag), miss: invs.filter(x => !x.inv.alts.has(k)).map(x => x.f.name) });
     }
     const ss = Object.assign({}, ...parsed.map(f => f.info.ssNames));
     for (const [tag, items] of byTag) sections.push({ title: `${tag} · ${featName(tag, { ssNames: ss }) || 'Feature'}`, items });
+    const named = parsed.filter(f => f.info.glyphNames);
+    if (named.length > 1) {
+      const sets = named.map(f => new Set(f.info.glyphNames.filter(Boolean)));
+      const all = new Set(sets.flatMap(x => [...x]));
+      const rows = named.map((f, i) => ({ f, miss: [...all].filter(n => !sets[i].has(n)) })).filter(r => r.miss.length);
+      const box = document.createElement('div');
+      box.className = 'gdiff' + (rows.length ? ' bad' : '');
+      box.innerHTML = rows.length
+        ? rows.map(r => `<details><summary><b>${esc(short(r.f.name))} is missing ${r.miss.length} glyph${r.miss.length === 1 ? '' : 's'}</b> that ${named.length === 2 ? 'the other layer has' : 'other layers have'}</summary><p>${r.miss.map(esc).join(' ')}</p></details>`).join('')
+        : `<b>All layers have the same ${all.size} glyph names.</b>`;
+      h.append(box);
+    }
     $('#glyph-note').textContent = invs.map(({ f, inv }) => `${short(f.name)}: ${inv.reached} of ${inv.total} glyphs shown`).join(' · ') + '. Glyphs reached only through contextual rules or by combining features aren’t listed. Click a glyph to proof it. A red corner means at least one layer doesn’t have it.';
   } else {
     const chars = [...new Set([...state.charset.replace(/\s/g, '')])];
@@ -888,6 +967,8 @@ function renderGlyphs() {
     $('#glyph-note').textContent = 'Showing the Sync check character set. Load OTF, TTF or WOFF files to see every glyph and alternate.';
   }
   for (const sec of sections) {
+    if (state.gOnlyMiss) sec.items = sec.items.filter(it => it.miss.length);
+    if (!sec.items.length) continue;
     const wrap = document.createElement('div'); wrap.className = 'gsec';
     wrap.innerHTML = `<h3>${esc(sec.title)} <span>${sec.items.length}</span></h3>`;
     const grid = document.createElement('div'); grid.className = 'glyphs';
@@ -895,7 +976,8 @@ function renderGlyphs() {
       const cell = document.createElement('div');
       cell.className = 'gcell'; cell.dataset.ch = it.text; cell.tabIndex = 0;
       if (it.tag) { cell.dataset.tag = it.tag; cell.dataset.n = it.n; }
-      if (it.miss.length) { cell.classList.add('miss'); cell.title = 'Missing in: ' + it.miss.join(', '); }
+      if (it.miss.length) cell.classList.add('miss');
+      cell.title = [it.name, it.tag && it.tag + ' feature', it.miss.length && 'Missing in: ' + it.miss.join(', ')].filter(Boolean).join('\n');
       const st = makeStack(it.text, {});
       if (it.tag) st.style.fontFeatureSettings = `"${it.tag}" ${it.n}`;
       if ([...it.text].length > 2) st.classList.add('long');
@@ -1188,6 +1270,7 @@ $('#glyph-host').addEventListener('click', e => {
   }
   state.view = 'tester'; renderView(); save();
 });
+$('#g-only').addEventListener('change', e => { state.gOnlyMiss = e.target.checked; renderGlyphs(); save(); });
 $('#gcols').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   state.gcols = +b.dataset.v;
@@ -1214,7 +1297,7 @@ $('#copy').addEventListener('click', async () => {
 async function boot() {
   const saved = loadLS();
   const savedLayers = saved && saved.layers;
-  if (saved) for (const k of ['view', 'text', 'longText', 'size', 'leading', 'tracking', 'align', 'tcase', 'paper', 'features', 'charset', 'refFamily', 'openCards', 'gcols']) if (saved[k] !== undefined) state[k] = saved[k];
+  if (saved) for (const k of ['view', 'text', 'longText', 'size', 'leading', 'tracking', 'align', 'tcase', 'paper', 'features', 'charset', 'refFamily', 'openCards', 'gcols', 'gOnlyMiss']) if (saved[k] !== undefined) state[k] = saved[k];
   state.layers = [];
   renderAll();
   if (!savedLayers || !savedLayers.some(l => !l.example)) return;
