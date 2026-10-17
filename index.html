@@ -229,7 +229,7 @@ tr.click:hover td { background: var(--chip); }
       <ul class="layers" id="layers"></ul>
       <div class="drop" id="drop">
         <span><strong>Drop font files here</strong> or anywhere on the page</span>
-        <span>OTF, TTF, WOFF, WOFF2. Each file becomes a layer. Fonts stay in this browser.</span>
+        <span>OTF, TTF, WOFF, WOFF2. Each file becomes a layer. Drop a new export with the same file name to update its layer and keep your settings. Fonts stay in this browser.</span>
         <div style="display:flex;gap:6px">
           <button class="btn primary" id="pick" type="button">Load fonts…</button>
           <button class="btn" id="clear" type="button">Clear all</button>
@@ -598,7 +598,7 @@ async function registerFont(id, buf, file) {
   const face = new FontFace(family, buf.slice(0));
   await face.load();
   document.fonts.add(face);
-  fonts[id] = { family, file, info: await analyse(buf.slice(0)) };
+  fonts[id] = { family, file, face, info: await analyse(buf.slice(0)) };
   return fonts[id];
 }
 async function addFiles(list) {
@@ -606,18 +606,30 @@ async function addFiles(list) {
   if (!files.length) { toast('Those files aren’t fonts. Use OTF, TTF, WOFF or WOFF2.'); return; }
   if (state.layers.some(l => l.example)) state.layers = state.layers.filter(l => !l.example);
   let added = 0;
+  const updated = [];
   for (const f of files) {
     const id = uid();
     try {
       const buf = await f.arrayBuffer();
+      const oldId = Object.keys(fonts).find(k => fonts[k].file === f.name);
       const F = await registerFont(id, buf, f.name);
       await idb('readwrite', s => s.put({ id, file: f.name, buf }));
+      if (oldId) {
+        // Same file name as a loaded font: swap in the new build and keep each layer's order, colour and settings.
+        state.layers.forEach(l => { if (l.fontId === oldId) { l.fontId = id; l.family = F.family; } });
+        await idb('readwrite', s => s.delete(oldId));
+        if (fonts[oldId].face) document.fonts.delete(fonts[oldId].face);
+        delete fonts[oldId];
+        updated.push(short((F.info && F.info.fullName) || f.name));
+        continue;
+      }
       // New files go to the bottom of the stack so the first file loaded stays on top.
       state.layers.push(newLayer({ fontId: id, family: F.family, name: (F.info && F.info.fullName) || f.name.replace(/\.\w+$/, '') }));
       added++;
     } catch (e) { toast('Couldn’t load ' + f.name + '. The file may be damaged.'); }
   }
-  if (added) toast(added === 1 ? 'Added 1 layer' : 'Added ' + added + ' layers');
+  const msg = [updated.length && 'Updated ' + updated.join(', '), added && (added === 1 ? 'added 1 layer' : 'added ' + added + ' layers')].filter(Boolean).join(' · ');
+  if (msg) toast(msg[0].toUpperCase() + msg.slice(1));
   lastAudit = null;
   renderAll();
 }
