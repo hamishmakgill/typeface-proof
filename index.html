@@ -574,6 +574,7 @@ function cffIndex(t, o) {
   const base = o + 3 + (count + 1) * os - 1;
   return { end: base + offs[count], items: offs.slice(0, -1).map((a, i) => [base + a, base + offs[i + 1]]) };
 }
+const CFF_STD = [".notdef","space","exclam","quotedbl","numbersign","dollar","percent","ampersand","quoteright","parenleft","parenright","asterisk","plus","comma","hyphen","period","slash","zero","one","two","three","four","five","six","seven","eight","nine","colon","semicolon","less","equal","greater","question","at","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","bracketleft","backslash","bracketright","asciicircum","underscore","quoteleft","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","braceleft","bar","braceright","asciitilde","exclamdown","cent","sterling","fraction","yen","florin","section","currency","quotesingle","quotedblleft","guillemotleft","guilsinglleft","guilsinglright","fi","fl","endash","dagger","daggerdbl","periodcentered","paragraph","bullet","quotesinglbase","quotedblbase","quotedblright","guillemotright","ellipsis","perthousand","questiondown","grave","acute","circumflex","tilde","macron","breve","dotaccent","dieresis","ring","cedilla","hungarumlaut","ogonek","caron","emdash","AE","ordfeminine","Lslash","Oslash","OE","ordmasculine","ae","dotlessi","lslash","oslash","oe","germandbls","onesuperior","logicalnot","mu","trademark","Eth","onehalf","plusminus","Thorn","onequarter","divide","brokenbar","degree","thorn","threequarters","twosuperior","registered","minus","eth","multiply","threesuperior","copyright","Aacute","Acircumflex","Adieresis","Agrave","Aring","Atilde","Ccedilla","Eacute","Ecircumflex","Edieresis","Egrave","Iacute","Icircumflex","Idieresis","Igrave","Ntilde","Oacute","Ocircumflex","Odieresis","Ograve","Otilde","Scaron","Uacute","Ucircumflex","Udieresis","Ugrave","Yacute","Ydieresis","Zcaron","aacute","acircumflex","adieresis","agrave","aring","atilde","ccedilla","eacute","ecircumflex","edieresis","egrave","iacute","icircumflex","idieresis","igrave","ntilde","oacute","ocircumflex","odieresis","ograve","otilde","scaron","uacute","ucircumflex","udieresis","ugrave","yacute","ydieresis","zcaron","exclamsmall","Hungarumlautsmall","dollaroldstyle","dollarsuperior","ampersandsmall","Acutesmall","parenleftsuperior","parenrightsuperior","twodotenleader","onedotenleader","zerooldstyle","oneoldstyle","twooldstyle","threeoldstyle","fouroldstyle","fiveoldstyle","sixoldstyle","sevenoldstyle","eightoldstyle","nineoldstyle","commasuperior","threequartersemdash","periodsuperior","questionsmall","asuperior","bsuperior","centsuperior","dsuperior","esuperior","isuperior","lsuperior","msuperior","nsuperior","osuperior","rsuperior","ssuperior","tsuperior","ff","ffi","ffl","parenleftinferior","parenrightinferior","Circumflexsmall","hyphensuperior","Gravesmall","Asmall","Bsmall","Csmall","Dsmall","Esmall","Fsmall","Gsmall","Hsmall","Ismall","Jsmall","Ksmall","Lsmall","Msmall","Nsmall","Osmall","Psmall","Qsmall","Rsmall","Ssmall","Tsmall","Usmall","Vsmall","Wsmall","Xsmall","Ysmall","Zsmall","colonmonetary","onefitted","rupiah","Tildesmall","exclamdownsmall","centoldstyle","Lslashsmall","Scaronsmall","Zcaronsmall","Dieresissmall","Brevesmall","Caronsmall","Dotaccentsmall","Macronsmall","figuredash","hypheninferior","Ogoneksmall","Ringsmall","Cedillasmall","questiondownsmall","oneeighth","threeeighths","fiveeighths","seveneighths","onethird","twothirds","zerosuperior","foursuperior","fivesuperior","sixsuperior","sevensuperior","eightsuperior","ninesuperior","zeroinferior","oneinferior","twoinferior","threeinferior","fourinferior","fiveinferior","sixinferior","seveninferior","eightinferior","nineinferior","centinferior","dollarinferior","periodinferior","commainferior","Agravesmall","Aacutesmall","Acircumflexsmall","Atildesmall","Adieresissmall","Aringsmall","AEsmall","Ccedillasmall","Egravesmall","Eacutesmall","Ecircumflexsmall","Edieresissmall","Igravesmall","Iacutesmall","Icircumflexsmall","Idieresissmall","Ethsmall","Ntildesmall","Ogravesmall","Oacutesmall","Ocircumflexsmall","Otildesmall","Odieresissmall","OEsmall","Oslashsmall","Ugravesmall","Uacutesmall","Ucircumflexsmall","Udieresissmall","Yacutesmall","Thornsmall","Ydieresissmall","001.000","001.001","001.002","001.003","Black","Bold","Book","Light","Medium","Regular","Roman","Semibold"];
 function readCffNames(t) {
   if (!t) return null;
   const nameIdx = cffIndex(t, t.getUint8(2)), top = cffIndex(t, nameIdx.end), str = cffIndex(t, top.end);
@@ -594,7 +595,7 @@ function readCffNames(t) {
   if (!dict[17] || !dict[15] || dict[15][0] < 3) return null;
   const n = t.getUint16(dict[17][0]);
   const strings = str.items.map(([x, y]) => { let r = ''; for (let i = x; i < y; i++) r += String.fromCharCode(t.getUint8(i)); return r; });
-  const sid = v => v >= 391 ? strings[v - 391] || null : null;
+  const sid = v => v >= 391 ? strings[v - 391] || null : CFF_STD[v] || null;
   const names = new Array(n).fill(null);
   names[0] = '.notdef';
   let q = dict[15][0], g = 1;
@@ -960,7 +961,7 @@ function renderGlyphs() {
         : `<b>All layers have the same ${all.size} glyph names.</b>`;
       h.append(box);
     }
-    $('#glyph-note').textContent = invs.map(({ f, inv }) => `${short(f.name)}: ${inv.reached} of ${inv.total} glyphs shown`).join(' · ') + '. Glyphs reached only through contextual rules or by combining features aren’t listed. Click a glyph to proof it. A red corner means at least one layer doesn’t have it.';
+    $('#glyph-note').textContent = invs.map(({ f, inv }) => `${short(f.name)}: ${inv.reached} of ${inv.total} glyphs shown`).join(' · ') + '. Glyphs reached only through contextual rules or by combining features aren’t listed. Click a glyph to proof it, right-click to copy its name. A red corner means at least one layer doesn’t have it.';
   } else {
     const chars = [...new Set([...state.charset.replace(/\s/g, '')])];
     sections.push({ title: 'Character set', items: chars.map(ch => ({ text: ch, label: hex(ch.codePointAt(0)), miss: [] })) });
@@ -974,10 +975,10 @@ function renderGlyphs() {
     const grid = document.createElement('div'); grid.className = 'glyphs';
     for (const it of sec.items) {
       const cell = document.createElement('div');
-      cell.className = 'gcell'; cell.dataset.ch = it.text; cell.tabIndex = 0;
+      cell.className = 'gcell'; cell.dataset.ch = it.text; cell.dataset.name = it.name || ''; cell.tabIndex = 0;
       if (it.tag) { cell.dataset.tag = it.tag; cell.dataset.n = it.n; }
       if (it.miss.length) cell.classList.add('miss');
-      cell.title = [it.name, it.tag && it.tag + ' feature', it.miss.length && 'Missing in: ' + it.miss.join(', ')].filter(Boolean).join('\n');
+      cell.title = [it.name, it.tag && it.tag + ' feature', it.miss.length && 'Missing in: ' + it.miss.join(', '), it.name && 'Right-click to copy the glyph name'].filter(Boolean).join('\n');
       const st = makeStack(it.text, {});
       if (it.tag) st.style.fontFeatureSettings = `"${it.tag}" ${it.n}`;
       if ([...it.text].length > 2) st.classList.add('long');
@@ -1277,6 +1278,19 @@ $('#gcols').addEventListener('click', e => {
   $('#glyph-host').style.setProperty('--gcols', state.gcols);
   $('#gcols').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
   save();
+});
+async function copyText(txt) {
+  try { await navigator.clipboard.writeText(txt); return true; }
+  catch {
+    const ta = document.createElement('textarea'); ta.value = txt; document.body.append(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch {}
+    ta.remove(); return ok;
+  }
+}
+$('#glyph-host').addEventListener('contextmenu', async e => {
+  const c = e.target.closest('.gcell'); if (!c || !c.dataset.name) return;
+  e.preventDefault();
+  toast(await copyText(c.dataset.name) ? 'Copied ' + c.dataset.name : 'Copy blocked. Glyph name: ' + c.dataset.name);
 });
 $('#glyph-host').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.click(); });
 $('#ref').addEventListener('change', e => { state.refFamily = e.target.value; save(); runAudit(); });
