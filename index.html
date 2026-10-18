@@ -190,6 +190,7 @@ input[type="range"]::-moz-range-thumb { width: 10px; height: 10px; border-radius
 .gonly { flex-direction: row !important; align-items: center; gap: 6px !important; font-size: 12.5px !important; color: var(--fg) !important; cursor: pointer; }
 .gonly input { accent-color: var(--fg); margin: 0; }
 .gcell .hex { max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;  position: absolute; bottom: 3px; font-family: var(--font-mono); font-size: 9px; color: #8a8f99; }
+.gcell.norule::after { content: ""; position: absolute; top: 0; right: 0; border: 7px solid transparent; border-top-color: var(--muted); border-right-color: var(--muted); }
 .gcell.miss::after { content: ""; position: absolute; top: 0; right: 0; border: 7px solid transparent; border-top-color: var(--warn); border-right-color: var(--warn); }
 .gcell:hover { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
 
@@ -314,7 +315,7 @@ tr.click:hover td { background: var(--chip); }
             <button type="button" data-v="14">14</button><button type="button" data-v="9">9</button><button type="button" data-v="6">6</button>
           </div>
         </div>
-        <label class="field gonly"><input type="checkbox" id="g-only"> Only glyphs missing from a layer</label>
+        <label class="field gonly"><input type="checkbox" id="g-only"> Only differences between layers</label>
         <p class="note" id="glyph-note"></p>
       </div>
       <div class="gsecs" id="glyph-host"></div>
@@ -922,11 +923,14 @@ function inventory(inf) {
   for (const tag of tags) for (const sb of inf.subs[tag]) {
     if (reach.has(sb.out) || !sb.in.every(g => rev.has(g) && !isCtrl(rev.get(g)))) continue;
     const text = sb.in.map(g => String.fromCodePoint(rev.get(g))).join('');
-    alts.set(`${tag}|${sb.n}|${text}`, { tag, n: sb.n, text, name: inf.glyphNames && inf.glyphNames[sb.out] });
+    // Key on the output glyph's name when the font has names, so the same alternate matches across layers whatever its glyph ID.
+    const name = inf.glyphNames && inf.glyphNames[sb.out];
+    alts.set(`${tag}|${text}|${name || '#' + sb.n}`, { tag, n: sb.n, text, name });
     reach.add(sb.out);
   }
   return (inf._inv = { alts, reached: reach.size, total: inf.numGlyphs });
 }
+const nameSet = inf => inf._names || (inf._names = new Set((inf.glyphNames || []).filter(Boolean)));
 function renderGlyphs() {
   const h = $('#glyph-host'); h.innerHTML = '';
   h.style.setProperty('--gcols', state.gcols);
@@ -945,7 +949,10 @@ function renderGlyphs() {
     const byTag = new Map();
     for (const [k, v] of all) {
       if (!byTag.has(v.tag)) byTag.set(v.tag, []);
-      byTag.get(v.tag).push({ ...v, label: v.name || (v.n > 1 ? `${v.tag} #${v.n}` : v.tag), miss: invs.filter(x => !x.inv.alts.has(k)).map(x => x.f.name) });
+      // A layer without this substitution either lacks the glyph itself, or has the glyph but no rule in this feature reaching it.
+      const lacking = invs.filter(x => !x.inv.alts.has(k));
+      const hasGlyph = x => !!(v.name && x.f.info.glyphNames && nameSet(x.f.info).has(v.name));
+      byTag.get(v.tag).push({ ...v, label: v.name || (v.n > 1 ? `${v.tag} #${v.n}` : v.tag), miss: lacking.filter(x => !hasGlyph(x)).map(x => x.f.name), noRule: lacking.filter(hasGlyph).map(x => x.f.name) });
     }
     const ss = Object.assign({}, ...parsed.map(f => f.info.ssNames));
     for (const [tag, items] of byTag) sections.push({ title: `${tag} · ${featName(tag, { ssNames: ss }) || 'Feature'}`, items });
@@ -961,14 +968,14 @@ function renderGlyphs() {
         : `<b>All layers have the same ${all.size} glyph names.</b>`;
       h.append(box);
     }
-    $('#glyph-note').textContent = invs.map(({ f, inv }) => `${short(f.name)}: ${inv.reached} of ${inv.total} glyphs shown`).join(' · ') + '. Glyphs reached only through contextual rules or by combining features aren’t listed. Click a glyph to proof it, right-click to copy its name. A red corner means at least one layer doesn’t have it.';
+    $('#glyph-note').textContent = invs.map(({ f, inv }) => `${short(f.name)}: ${inv.reached} of ${inv.total} glyphs shown`).join(' · ') + '. Glyphs reached only through contextual rules or by combining features aren’t listed. Click a glyph to proof it, right-click to copy its name. Red corner: a layer doesn’t have the glyph. Grey corner: every layer has the glyph, but one has no rule in that feature reaching it.';
   } else {
     const chars = [...new Set([...state.charset.replace(/\s/g, '')])];
     sections.push({ title: 'Character set', items: chars.map(ch => ({ text: ch, label: hex(ch.codePointAt(0)), miss: [] })) });
     $('#glyph-note').textContent = 'Showing the Sync check character set. Load OTF, TTF or WOFF files to see every glyph and alternate.';
   }
   for (const sec of sections) {
-    if (state.gOnlyMiss) sec.items = sec.items.filter(it => it.miss.length);
+    if (state.gOnlyMiss) sec.items = sec.items.filter(it => it.miss.length || (it.noRule && it.noRule.length));
     if (!sec.items.length) continue;
     const wrap = document.createElement('div'); wrap.className = 'gsec';
     wrap.innerHTML = `<h3>${esc(sec.title)} <span>${sec.items.length}</span></h3>`;
@@ -977,8 +984,10 @@ function renderGlyphs() {
       const cell = document.createElement('div');
       cell.className = 'gcell'; cell.dataset.ch = it.text; cell.dataset.name = it.name || ''; cell.tabIndex = 0;
       if (it.tag) { cell.dataset.tag = it.tag; cell.dataset.n = it.n; }
+      const noRule = it.noRule || [];
       if (it.miss.length) cell.classList.add('miss');
-      cell.title = [it.name, it.tag && it.tag + ' feature', it.miss.length && 'Missing in: ' + it.miss.join(', '), it.name && 'Right-click to copy the glyph name'].filter(Boolean).join('\n');
+      else if (noRule.length) cell.classList.add('norule');
+      cell.title = [it.name, it.tag && it.tag + ' feature', it.miss.length && 'Glyph missing in: ' + it.miss.join(', '), noRule.length && `Glyph exists, but no ${it.tag} rule reaches it in: ` + noRule.join(', '), it.name && 'Right-click to copy the glyph name'].filter(Boolean).join('\n');
       const st = makeStack(it.text, {});
       if (it.tag) st.style.fontFeatureSettings = `"${it.tag}" ${it.n}`;
       if ([...it.text].length > 2) st.classList.add('long');
